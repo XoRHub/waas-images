@@ -46,6 +46,14 @@ BUILD_ARG_FLAGS=""
 for kv in ${IMG_BUILD_ARGS:-}; do
     BUILD_ARG_FLAGS="${BUILD_ARG_FLAGS} --build-arg ${kv}"
 done
+# recipe: images build from Dockerfile.generated (materialised by
+# ci/recipe_compiler.py in the generate stage, delivered as an artifact).
+DOCKERFILE_FLAG=""
+if [ -n "${IMG_DOCKERFILE:-}" ]; then
+    [ -f "${IMG_CONTEXT}/${IMG_DOCKERFILE}" ] \
+        || { echo "FATAL: ${IMG_CONTEXT}/${IMG_DOCKERFILE} missing — generate-pipeline artifacts not downloaded?"; exit 1; }
+    DOCKERFILE_FLAG="-f ${IMG_CONTEXT}/${IMG_DOCKERFILE}"
+fi
 # Derived images consume the parent's SAME-ARCH tag pushed earlier in
 # this very pipeline (IMG_FROM_REF is "<name>:<version>"; the same-commit
 # sha suffix pins it).
@@ -63,6 +71,7 @@ docker buildx build \
     --cache-from "type=registry,ref=${CACHE_REF}" \
     --cache-to "type=registry,ref=${CACHE_REF},mode=max" \
     ${BUILD_ARG_FLAGS} \
+    ${DOCKERFILE_FLAG} \
     -t "${IMAGE}:${ARCH_TAG}" \
     "${IMG_CONTEXT}"
 

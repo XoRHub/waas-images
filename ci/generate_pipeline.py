@@ -19,6 +19,9 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import recipe_compiler  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 LAYER_DIRS = ("base", "desktop", "apps")
 # GitLab runner tag per build platform. An arch without a native runner
@@ -32,6 +35,10 @@ def load_manifests() -> list[dict]:
         for mf in sorted(ROOT.glob(f"{layer}/*/manifest.yaml")):
             m = yaml.safe_load(mf.read_text())
             m["context"] = str(mf.parent.relative_to(ROOT))
+            # recipe: manifests get their Dockerfile.generated materialised
+            # here (and the recipe+Dockerfile ambiguity is refused); None
+            # means "hand-written Dockerfile", the default.
+            m["dockerfile"] = recipe_compiler.compile_recipe(m, mf.parent, ROOT)
             manifests.append(m)
     if not manifests:
         sys.exit("no manifests found — nothing to build")
@@ -58,6 +65,7 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
             variants[name] = {
                 "name": name,
                 "context": m["context"],
+                "dockerfile": m["dockerfile"],
                 "version": str(m["version"]),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
@@ -141,6 +149,8 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
                 f"{k}={val}" for k, val in sorted(v["smoke"].get("env", {}).items())
             ),
         }
+        if v["dockerfile"]:
+            common_vars["IMG_DOCKERFILE"] = v["dockerfile"]
 
         for arch in v["archs"]:
             suffix = arch.removeprefix("linux/")
@@ -152,8 +162,17 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
                 "variables": {**common_vars, "IMG_ARCH": arch},
                 "script": ["sh ci/build_image.sh"],
             }
+            needs: list = []
             if v["from"]:
-                job["needs"] = [f"build:{v['from']}:{suffix}"]
+                needs.append(f"build:{v['from']}:{suffix}")
+            if v["dockerfile"]:
+                # Dockerfile.generated is not committed: the child job
+                # (fresh checkout, python-less docker image) downloads it
+                # from the parent's generate-pipeline artifacts.
+                needs.append({"pipeline": "$PARENT_PIPELINE_ID",
+                              "job": "generate-pipeline"})
+            if needs:
+                job["needs"] = needs
             pipeline[f"build:{name}:{suffix}"] = job
 
         pipeline[f"merge:{name}"] = {

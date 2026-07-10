@@ -28,10 +28,16 @@ else ifeq ($(IMAGE),dev-ssh)
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-base-vnc:dev
 endif
 
-.PHONY: build run smoke lint clean
+.PHONY: build run smoke lint clean recipes
 
-build:
-	docker build $(ARGS) -t $(TAG) $(CTX)
+# Materialise Dockerfile.generated for every recipe: manifest (gitignored;
+# CI regenerates them in the generate stage). Needs python3 + pyyaml,
+# same as the pipeline generator.
+recipes:
+	python3 ci/generate_pipeline.py
+
+build: recipes
+	docker build $(ARGS) $(if $(wildcard $(CTX)/Dockerfile.generated),-f $(CTX)/Dockerfile.generated) -t $(TAG) $(CTX)
 
 run: build
 	docker run --rm -it \
@@ -44,8 +50,8 @@ run: build
 smoke: build
 	SMOKE_IMAGE=$(TAG) SMOKE_HOST=localhost SMOKE_VNC=1 sh ci/smoke_test.sh
 
-lint:
-	hadolint --failure-threshold warning $$(find . -name Dockerfile)
+lint: recipes
+	hadolint --failure-threshold warning $$(find . -name Dockerfile -o -name Dockerfile.generated)
 	shellcheck ci/*.sh base/*/rootfs/usr/local/bin/* $$(find . -path '*/entrypoint.d/*.sh')
 
 clean:

@@ -1,8 +1,10 @@
 # waas-images — standalone pipeline (this repo was split out of the
 # waas monorepo on 2026-07-10; jobs run from this repo's root).
 #
-# lint      hadolint on every Dockerfile, shellcheck on scripts
 # generate  ci/generate_pipeline.py: manifests -> build-pipeline.yml
+#           (+ ci/recipe_compiler.py: recipe: blocks -> Dockerfile.generated)
+# lint      hadolint on every Dockerfile (committed AND generated),
+#           shellcheck on scripts
 # build     triggers the generated child pipeline (per image: one
 #           NATIVE build job per arch on the amd/arm runner fleets +
 #           one manifest-list merge job, staged by layer depth:
@@ -20,7 +22,10 @@
 #             amd fleet under emulation (fallback when the arm fleet is
 #             down); default "native"
 
-stages: [lint, generate, build]
+# generate runs BEFORE lint: recipe: manifests have no committed
+# Dockerfile — ci/recipe_compiler.py materialises Dockerfile.generated
+# during generate-pipeline, and hadolint must see those files too.
+stages: [generate, lint, build]
 
 default:
   # lint/generate only — build jobs get their arch tag from the generator.
@@ -33,18 +38,6 @@ workflow:
       when: never
     - if: $CI_COMMIT_BRANCH
 
-hadolint:
-  stage: lint
-  image: hadolint/hadolint:2.12.0-alpine
-  script:
-    - hadolint --failure-threshold warning $(find . -name Dockerfile)
-
-shellcheck:
-  stage: lint
-  image: koalaman/shellcheck-alpine:v0.10.0
-  script:
-    - shellcheck ci/*.sh base/*/rootfs/usr/local/bin/*
-
 generate-pipeline:
   stage: generate
   image: python:3.12-slim
@@ -52,12 +45,34 @@ generate-pipeline:
     - pip install --no-cache-dir pyyaml==6.0.2
     - python3 ci/generate_pipeline.py
   artifacts:
-    paths: [build-pipeline.yml]
+    paths:
+      - build-pipeline.yml
+      # recipe-compiled Dockerfiles: linted by hadolint below, consumed
+      # by the child pipeline's build jobs (needs:pipeline:job).
+      - "*/*/Dockerfile.generated"
     expire_in: 1 week
+
+hadolint:
+  stage: lint
+  image: hadolint/hadolint:2.12.0-alpine
+  needs: [generate-pipeline]
+  script:
+    - hadolint --failure-threshold warning $(find . -name Dockerfile -o -name Dockerfile.generated)
+
+shellcheck:
+  stage: lint
+  image: koalaman/shellcheck-alpine:v0.10.0
+  needs: []
+  script:
+    - shellcheck ci/*.sh base/*/rootfs/usr/local/bin/*
 
 build-images:
   stage: build
   needs: [generate-pipeline, hadolint, shellcheck]
+  variables:
+    # Lets child-pipeline jobs pull the parent's generate-pipeline
+    # artifacts (Dockerfile.generated) via needs:pipeline:job.
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
   trigger:
     include:
       - artifact: build-pipeline.yml

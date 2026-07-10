@@ -150,9 +150,7 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
                 # script installs binfmt when the target arch differs.
                 "tags": ["amd" if strategy == "qemu" else RUNNER_TAGS[arch]],
                 "variables": {**common_vars, "IMG_ARCH": arch},
-                # Grandchild jobs run from the repo root (monorepo): the
-                # build script and its manifests live under waas-images/.
-                "script": ["cd waas-images", "sh ci/build_image.sh"],
+                "script": ["sh ci/build_image.sh"],
             }
             if v["from"]:
                 job["needs"] = [f"build:{v['from']}:{suffix}"]
@@ -166,7 +164,7 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
                 "IMG_VERSION": v["version"],
                 "IMG_ARCHS": ",".join(v["archs"]),
             },
-            "script": ["cd waas-images", "sh ci/merge_image.sh"],
+            "script": ["sh ci/merge_image.sh"],
         }
 
     return yaml.safe_dump(pipeline, sort_keys=False, width=120)

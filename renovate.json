@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Standalone config (restored on the 2026-07-10 split out of the waas monorepo, whose root config had superseded the previous per-repo file): image Dockerfiles, CI job images, tool pins in ci/*.sh.",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests"
+  ],
+  "gitlabci": {
+    "managerFilePatterns": [
+      "/\\.gitlab-ci\\.ya?ml$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Ubuntu LTS bumps are a deliberate decision: group and label, never automerge.",
+      "matchPackageNames": [
+        "ubuntu"
+      ],
+      "groupName": "ubuntu base image",
+      "labels": [
+        "os-bump"
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Container tool images pinned inside the CI shell scripts (binfmt, trivy, cosign, buildkit).",
+      "managerFilePatterns": [
+        "/^ci/.+\\.sh$/"
+      ],
+      "matchStrings": [
+        "(?<depName>[a-z0-9.\\/-]+\\/(?:binfmt|trivy|cosign|buildkit)):(?<currentValue>v?[a-zA-Z0-9.-]+)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "UBUNTU_VERSION default in the workspace base Dockerfile.",
+      "managerFilePatterns": [
+        "/^base/ubuntu/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG UBUNTU_VERSION=(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "ubuntu",
+      "datasourceTemplate": "docker"
+    }
+  ]
+}

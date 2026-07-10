@@ -1,15 +1,14 @@
-# waas-images — CHILD pipeline, triggered by the root .gitlab-ci.yml
-# when waas-images/** changes (jobs run from the REPO ROOT, hence the
-# explicit cd/paths).
+# waas-images — standalone pipeline (this repo was split out of the
+# waas monorepo on 2026-07-10; jobs run from this repo's root).
 #
 # lint      hadolint on every Dockerfile, shellcheck on scripts
 # generate  ci/generate_pipeline.py: manifests -> build-pipeline.yml
-# build     triggers the generated grandchild pipeline (per image: one
+# build     triggers the generated child pipeline (per image: one
 #           NATIVE build job per arch on the amd/arm runner fleets +
 #           one manifest-list merge job, staged by layer depth:
 #           base -> desktop -> apps)
 #
-# Behaviour by ref (inherited from the parent pipeline context):
+# Behaviour by ref:
 #   merge request:   build + smoke + scan, push of -g<sha> tags only
 #   default branch:  + immutable <version> tags + cosign signature
 #
@@ -29,10 +28,6 @@ default:
 
 workflow:
   rules:
-    # Nominal path since the monorepo merge: triggered by the parent.
-    - if: $CI_PIPELINE_SOURCE == "parent_pipeline"
-    # Kept for a standalone run (e.g. project temporarily pointed at
-    # this file); harmless otherwise.
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
@@ -42,22 +37,22 @@ hadolint:
   stage: lint
   image: hadolint/hadolint:2.12.0-alpine
   script:
-    - hadolint --failure-threshold warning $(find waas-images -name Dockerfile)
+    - hadolint --failure-threshold warning $(find . -name Dockerfile)
 
 shellcheck:
   stage: lint
   image: koalaman/shellcheck-alpine:v0.10.0
   script:
-    - shellcheck waas-images/ci/*.sh waas-images/base/*/rootfs/usr/local/bin/*
+    - shellcheck ci/*.sh base/*/rootfs/usr/local/bin/*
 
 generate-pipeline:
   stage: generate
   image: python:3.12-slim
   script:
     - pip install --no-cache-dir pyyaml==6.0.2
-    - python3 waas-images/ci/generate_pipeline.py
+    - python3 ci/generate_pipeline.py
   artifacts:
-    paths: [waas-images/build-pipeline.yml]
+    paths: [build-pipeline.yml]
     expire_in: 1 week
 
 build-images:
@@ -65,6 +60,6 @@ build-images:
   needs: [generate-pipeline, hadolint, shellcheck]
   trigger:
     include:
-      - artifact: waas-images/build-pipeline.yml
+      - artifact: build-pipeline.yml
         job: generate-pipeline
     strategy: depend

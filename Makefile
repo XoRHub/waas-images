@@ -47,6 +47,9 @@ else ifeq ($(IMAGE),fedora-xfce)
 else ifeq ($(IMAGE),ubuntu-devtools)
   CTX := apps/devtools
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
+else ifeq ($(IMAGE),ubuntu-devtools-dev)
+  CTX := apps/devtools
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev --build-arg INSTALL_SUDO=1 --build-arg WAAS_PROFILE=dev
 else ifeq ($(IMAGE),ubuntu-libreoffice)
   CTX := apps/libreoffice
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev

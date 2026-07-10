@@ -11,7 +11,9 @@ is enforced, so the list is verifiable, not aspirational.
       → `base/ubuntu/Dockerfile`, `USER` directive; verify:
       `docker run --rm <img> id` → `uid=1000`.
 - [x] **No setuid/setgid binaries**: all `+s` bits stripped after every
-      apt layer (base and derived images re-assert after installs).
+      apt layer (base and derived images re-assert after installs), and
+      **asserted by the CI smoke test** (`ci/smoke_test.sh` fails on any
+      suid file; `-dev` images must show exactly `/usr/bin/sudo`).
       → verify: `docker run --rm <img> find / -xdev -perm /6000 -type f`
       → empty.
 - [x] **No secrets in the image**: password arrives at runtime via env,
@@ -68,6 +70,56 @@ is enforced, so the list is verifiable, not aspirational.
       5901/3389/4713; no east-west between workspaces. Mandatory if
       audio stays enabled: 4713 accepts anonymous clients by design.
 - [ ] Template credentials from Vault/ESO (see README § Secrets).
+
+## Reduced profile: `-dev` images
+
+Some workspaces are development environments whose users legitimately
+need `sudo apt install` in-session. That can never be a runtime flag —
+sudo is a setuid binary (stripped from standard images), `apt` writes
+outside `/home/user|/tmp|/run`, and `no-new-privileges` kills setuid
+transitions — so it is a **build-time variant with a distinct tag**
+(`<name>-dev`, e.g. `ubuntu-devtools-dev`), a documented reduced
+profile, not a regression of this checklist.
+
+Items **lifted** on `-dev` images, and only these:
+
+- Setuid: exactly `/usr/bin/sudo` (NOPASSWD for UID 1000). The smoke
+  test asserts the set is exactly that — anything else fails CI.
+- Read-only rootfs: the matching WorkspaceTemplate must set
+  `readOnlyRootFilesystem: false` (in-session installs land in the
+  container layer and are **lost on pod restart**; only `/home/user`
+  survives).
+- `allowPrivilegeEscalation: true` (without it sudo stays dead).
+- `capabilities.drop: [ALL]` → keep the **runtime default** capability
+  set instead: a setuid binary regains capabilities only within the
+  bounding set, so an ALL-dropped pod keeps sudo dead even with
+  privilege escalation allowed (verified live: `sudo: unable to change
+  to root gid`). Do not add capabilities beyond the runtime defaults.
+
+Items that **hold**, smoke/scan-enforced like everywhere else: non-root
+UID 1000, no capabilities added beyond runtime defaults, no secrets
+baked, minimal packages (sudo aside), VncAuth always on, trivy gate,
+cosign signature. The dev smoke exercises `sudo -n true` for real under
+exactly this profile.
+
+Guard rails: the pipeline generator refuses `INSTALL_SUDO=1` on a
+variant whose name lacks the `-dev` suffix or whose `profile:` is not
+`dev`; the image bakes `WAAS_PROFILE=dev` and the entrypoint logs a
+loud boot warning (`RDP_AUTH_ENABLED=false` precedent); the catalog
+entry must keep its `allowedGroups` gate (platform-side, documented
+contract — same list as the standard `ubuntu-devtools`).
+
+## Runtime init hook (`/etc/waas/init.d/`)
+
+`waas-entrypoint` sources `/etc/waas/init.d/*.sh` after the image's own
+build-time `entrypoint.d/` hooks (separate directory on purpose: a
+volume mounted over `entrypoint.d/` would shadow the image's hooks).
+Mount a ConfigMap there to run per-workspace initialisation at boot
+without rebuilding the image. No privilege change: scripts run as UID
+1000 like everything else — only a `-dev` image gives them a sudo path
+— and anything they install outside the home PVC is lost on pod
+restart. Wiring the ConfigMap mount into the WorkspaceTemplate is a
+platform-repo concern.
 
 ## Threat model for desktop traffic
 

@@ -18,3 +18,21 @@ variants:
   - name: ubuntu-devtools
     smoke:
       vnc: true
+
+  # Reduced-hardening dev variant: sudo (NOPASSWD) for UID 1000, the
+  # ONLY setuid binary in the image (smoke-asserted). Distinct tag by
+  # construction; profile: dev switches the smoke to the relaxed pod
+  # profile and bakes WAAS_PROFILE=dev (loud entrypoint warning).
+  # Platform-side contract (documented, enforced there): catalog entry
+  # gated by allowedGroups, WorkspaceTemplate with
+  # readOnlyRootFilesystem: false, allowPrivilegeEscalation: true AND
+  # the runtime default capability set (cap-drop ALL keeps sudo dead —
+  # setuid regains caps only within the bounding set). In-session
+  # installs land in the container layer: lost on pod restart, only
+  # /home/user survives.
+  - name: ubuntu-devtools-dev
+    profile: dev
+    buildArgs:
+      INSTALL_SUDO: "1"
+    smoke:
+      vnc: true

@@ -67,6 +67,21 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 **m.get("buildArgs", {}),
                 **v.get("buildArgs", {}),
             }
+            # Reduced-hardening variants: INSTALL_SUDO=1 must be
+            # impossible to ship under an innocuous name or profile. The
+            # -dev tag suffix and the relaxed smoke are tied together
+            # here, not left to authoring discipline.
+            profile = v.get("profile", "standard")
+            if profile not in ("standard", "dev"):
+                sys.exit(f"{name}: profile must be standard|dev, got {profile!r}")
+            if str(build_args.get("INSTALL_SUDO", "0")) == "1":
+                if not name.endswith("-dev"):
+                    sys.exit(f"{name}: INSTALL_SUDO=1 requires the -dev name suffix")
+                if profile != "dev":
+                    sys.exit(f"{name}: INSTALL_SUDO=1 requires profile: dev")
+            if profile == "dev":
+                # Baked marker consumed by waas-entrypoint's boot warning.
+                build_args.setdefault("WAAS_PROFILE", "dev")
             variants[name] = {
                 "name": name,
                 "context": m["context"],
@@ -74,6 +89,7 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 "os": os_key,
                 "layer": m.get("layer", m["context"].split("/", 1)[0]),
                 "description": " ".join(str(m.get("description", "")).split()),
+                "profile": profile,
                 "version": str(m["version"]),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
@@ -149,6 +165,7 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
             "IMG_FROM_REF": (
                 f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
             ),
+            "SMOKE_PROFILE": v["profile"],
             "SMOKE_VNC": "1" if v["smoke"].get("vnc") else "0",
             "SMOKE_RDP": "1" if v["smoke"].get("rdp") else "0",
             "SMOKE_SSH": "1" if v["smoke"].get("ssh") else "0",

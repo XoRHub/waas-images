@@ -20,6 +20,12 @@ RUNDIR="${WAAS_RUNTIME_DIR:-/tmp/waas}"
 umask 077
 mkdir -p "${RUNDIR}/supervisor.d" "${RUNDIR}/xrdp"
 
+# Reduced-hardening builds (*-dev variants, WAAS_PROFILE=dev baked at
+# build time) announce themselves loudly, like RDP_AUTH_ENABLED=false.
+if [[ "${WAAS_PROFILE:-standard}" == "dev" ]]; then
+    log "WARNING: dev-profile image (WAAS_PROFILE=dev) — sudo is enabled for UID 1000; keep this image behind its catalog group gate (see HARDENING.md § Reduced profile)"
+fi
+
 # ---------------------------------------------------------------- password
 # Single session password shared by both protocols (the xrdp libvnc bridge
 # forwards the RDP password as the VNC password, so they cannot differ).
@@ -197,6 +203,23 @@ if [[ -d /etc/waas/entrypoint.d ]]; then
     for hook in /etc/waas/entrypoint.d/*.sh; do
         [[ -e "${hook}" ]] || continue
         log "entrypoint hook: $(basename "${hook}")"
+        # shellcheck disable=SC1090
+        source "${hook}"
+    done
+fi
+
+# Runtime init hook: /etc/waas/init.d/ is DELIBERATELY a separate
+# directory from entrypoint.d/ (baked at build time — a volume mounted
+# there would shadow the image's own hooks). The operator/user mounts a
+# ConfigMap of *.sh here to run per-workspace initialisation at boot
+# without rebuilding the image. Runs AFTER the image's own hooks, same
+# privilege as everything else (UID 1000; only a dev-profile image with
+# sudo gives it a path to more). Anything it installs outside the home
+# PVC lives in the container layer: lost on pod restart.
+if [[ -d /etc/waas/init.d ]]; then
+    for hook in /etc/waas/init.d/*.sh; do
+        [[ -e "${hook}" ]] || continue
+        log "init.d hook: $(basename "${hook}")"
         # shellcheck disable=SC1090
         source "${hook}"
     done

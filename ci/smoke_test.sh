@@ -5,6 +5,8 @@
 # every capability dropped, no-new-privileges, tmpfs home — so the
 # hardening contract is enforced by CI, not just documented. If someone
 # adds a service that needs to write outside /tmp|/run|$HOME, this fails.
+# A suid sweep asserts "no setuid/setgid binaries" (standard profile) or
+# "exactly sudo" (SMOKE_PROFILE=dev, reduced-hardening images).
 #
 # Checks (retried, because published ports accept connections before the
 # in-container service is up — docker-proxy answers first):
@@ -19,6 +21,21 @@ set -eu
 HOST="${SMOKE_HOST:-localhost}"   # Kubernetes executor: pod-shared netns with the dind service
 NAME="smoke-$$"
 
+# SMOKE_PROFILE=dev (generator: manifest variant with profile: dev): the
+# image ships sudo, so the container mirrors the relaxed pod profile its
+# WorkspaceTemplate must set — no --read-only, no no-new-privileges, and
+# the RUNTIME DEFAULT capability set instead of --cap-drop ALL: a setuid
+# binary regains capabilities only within the bounding set, so an
+# ALL-dropped pod keeps sudo dead even with privilege escalation allowed
+# (verified live: 'unable to change to root gid'). The suid gate below
+# expects EXACTLY /usr/bin/sudo, and sudo is exercised for real.
+PROFILE="${SMOKE_PROFILE:-standard}"
+if [ "${PROFILE}" = "dev" ]; then
+    HARDEN_FLAGS=""
+else
+    HARDEN_FLAGS="--read-only --cap-drop ALL --security-opt no-new-privileges"
+fi
+
 ENV_FLAGS="-e VNC_PW=smoketest-$$"
 for kv in ${SMOKE_ENV:-}; do
     ENV_FLAGS="${ENV_FLAGS} -e ${kv}"
@@ -32,15 +49,37 @@ trap cleanup EXIT
 
 # shellcheck disable=SC2086
 docker run -d --name "${NAME}" \
-    --read-only \
-    --cap-drop ALL \
-    --security-opt no-new-privileges \
+    ${HARDEN_FLAGS} \
     --tmpfs /tmp \
     --tmpfs /run \
     --tmpfs /home/user:mode=1777 \
     -p 15901:5901 -p 13389:3389 -p 12222:2222 \
     ${ENV_FLAGS} \
     "${SMOKE_IMAGE}" >/dev/null
+
+# Setuid/setgid gate — the HARDENING.md "No setuid/setgid binaries"
+# checklist item, enforced (it used to rely on Dockerfile discipline
+# alone). Runs before the protocol probes: it needs the container, not
+# the services.
+SUID_FOUND=$(docker exec "${NAME}" find / -xdev -perm /6000 -type f 2>/dev/null | sort | tr '\n' ' ' || true)
+if [ "${PROFILE}" = "dev" ]; then
+    if [ "${SUID_FOUND}" != "/usr/bin/sudo " ]; then
+        echo "FAIL: dev profile must ship exactly /usr/bin/sudo setuid, got: '${SUID_FOUND}'"
+        exit 1
+    fi
+    echo "OK: suid set is exactly /usr/bin/sudo (dev profile)"
+    # The variant's whole point: prove sudo actually grants root under
+    # the relaxed profile (NOPASSWD sudoers baked at build).
+    docker exec "${NAME}" sudo -n true \
+        || { echo "FAIL: sudo -n true failed in the dev-profile container"; exit 1; }
+    echo "OK: sudo works (dev profile)"
+else
+    if [ -n "${SUID_FOUND}" ]; then
+        echo "FAIL: setuid/setgid binaries found: ${SUID_FOUND}"
+        exit 1
+    fi
+    echo "OK: no setuid/setgid binaries"
+fi
 
 # retry "<label>" <fn>: run <fn> up to 60 times, 2s apart, failing early
 # if the container died. The probe itself is the readiness check.

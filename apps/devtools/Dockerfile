@@ -52,9 +52,40 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/user/.gnupg
 
+# ---- dev variant (ubuntu-devtools-dev) --------------------------------
+# INSTALL_SUDO=1 is only ever set by the *-dev manifest variant (the
+# generator refuses it on a name without the -dev suffix) and yields a
+# DISTINCT tag with a documented reduced profile (HARDENING.md § Reduced
+# profile). sudo is useless without the matching pod profile
+# (readOnlyRootFilesystem: false, allowPrivilegeEscalation: true) — that
+# WorkspaceTemplate change lives in the platform repo. Anything
+# installed in-session lands in the container layer: lost on pod
+# restart, only /home/user (PVC) survives.
+ARG INSTALL_SUDO=0
+RUN if [ "${INSTALL_SUDO}" = "1" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends sudo && \
+        printf 'user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/waas-dev && \
+        chmod 0440 /etc/sudoers.d/waas-dev && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/*; \
+    fi
+
 # Re-assert suid stripping (new packages may bring some back). Separate
 # RUN: a trailing "|| true" on the apt chain would mask install failures.
-RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true
+# The dev variant excludes exactly /usr/bin/sudo — the smoke test
+# asserts the resulting set (empty vs exactly sudo) per profile.
+RUN if [ "${INSTALL_SUDO}" = "1" ]; then \
+        find / -xdev -perm /6000 -type f ! -path /usr/bin/sudo -exec chmod a-s {} + 2>/dev/null || true; \
+    else \
+        find / -xdev -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true; \
+    fi
+
+# Baked profile marker: waas-entrypoint logs a loud warning when it
+# boots a dev-profile image (RDP_AUTH_ENABLED=false precedent). Injected
+# by the generator from the variant's profile: key.
+ARG WAAS_PROFILE=standard
+ENV WAAS_PROFILE=${WAAS_PROFILE}
 
 # The pod is the sandbox boundary (non-root, no caps, seccomp, read-only,
 # NetworkPolicy): the default seccomp profile blocks the user namespaces

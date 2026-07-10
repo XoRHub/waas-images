@@ -34,6 +34,8 @@ The web client is guacd/wwt from the platform — no noVNC in the images.
 | Readiness/liveness | TCP open on the template port ⇔ protocol server accepting connections (matches the operator's TCP probes) |
 | User | UID/GID `1000:1000` (build-args `WAAS_UID/WAAS_GID`), home **`/home/user`** = operator's PVC mount; fresh PVCs are seeded from `/etc/skel` |
 | Writable paths | `/home/user` (PVC), `/tmp`, `/run` (emptyDirs) — everything else read-only-safe |
+| Init hook | optional ConfigMap mounted at `/etc/waas/init.d/` — `*.sh` sourced at boot after the image's own `entrypoint.d/` hooks (UID 1000, no privilege change; see HARDENING.md) |
+| Dev profile | `-dev` tags only (e.g. `ubuntu-devtools-dev`): sudo NOPASSWD baked, `WAAS_PROFILE=dev` warning at boot; pod must set `readOnlyRootFilesystem: false`, `allowPrivilegeEscalation: true` AND keep the runtime default capability set (cap-drop ALL keeps sudo dead); keep the catalog `allowedGroups` gate (HARDENING.md § Reduced profile) |
 | Required env | `VNC_PW` (or `VNC_PASSWORD` / `RDP_PASSWORD` — one shared session password). **Refuses to start without it.** |
 | Optional env | `VNC_RESOLUTION` (`1920x1080`), `VNC_COL_DEPTH` (`24`), `WAAS_VNC_ENABLED` (`1`), `WAAS_RDP_ENABLED`, `RDP_AUTH_ENABLED` (`true`), `WAAS_STARTUP` (session command), `WAAS_TLS_CERT`/`WAAS_TLS_KEY` (mounted RDP cert) |
 | Recommended pod securityContext | `runAsNonRoot`, `runAsUser/fsGroup: 1000`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault` → PodSecurity **restricted** compliant |

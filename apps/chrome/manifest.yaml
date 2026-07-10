@@ -1,0 +1,34 @@
+# recipe: consumer exercising the repo: key (third-party apt repo, the
+# firefox pattern compiled from YAML). Google's deb ships a SETUID
+# chrome-sandbox helper that the template's suid strip removes, and the
+# pod seccomp profile blocks the user-namespace fallback — Chrome
+# therefore launches with --no-sandbox: the pod (non-root, no caps,
+# read-only, seccomp, NetworkPolicy) is the sandbox boundary, the exact
+# trade-off already documented for Firefox in HARDENING.md § Known gaps.
+name: ubuntu-chrome
+layer: apps
+description: >
+  XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint
+  pinned), auto-started via XDG autostart; the pod is the sandbox
+  boundary (inner Chrome sandbox disabled, Firefox-gap precedent).
+version: "1.0.0"
+from: ubuntu-xfce
+
+# Google publishes no arm64 Chrome deb — amd64 only, like the catalog's
+# firefox entry until proven otherwise.
+archs: [linux/amd64]
+
+recipe:
+  apt: [google-chrome-stable]
+  autostart: google-chrome-stable --no-sandbox
+  repo:
+    url: https://dl.google.com/linux/chrome/deb/
+    keyUrl: https://dl.google.com/linux/linux_signing_key.pub
+    # Primary key fingerprint, read from the live key on 2026-07-11.
+    fingerprint: "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"
+    pin: "google-chrome*"
+
+variants:
+  - name: ubuntu-chrome
+    smoke:
+      vnc: true

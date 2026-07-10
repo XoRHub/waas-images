@@ -44,6 +44,15 @@ else ifeq ($(IMAGE),fedora-base-rdp)
 else ifeq ($(IMAGE),fedora-xfce)
   CTX := desktop/xfce-fedora
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/fedora-base-rdp:dev
+else ifeq ($(IMAGE),ubuntu-devtools)
+  CTX := apps/devtools
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
+else ifeq ($(IMAGE),ubuntu-libreoffice)
+  CTX := apps/libreoffice
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
+else ifeq ($(IMAGE),ubuntu-chrome)
+  CTX := apps/chrome
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
 endif
 
 .PHONY: build run smoke lint clean recipes

@@ -1,0 +1,20 @@
+# Fills the governance catalog's ubuntu-devtools entry ("Dev Tools
+# (VS Code, toolchains)", allowedGroups nymphe:dev — the catalog gate
+# lives in the platform repo, not here).
+name: ubuntu-devtools
+layer: apps
+description: >
+  XFCE work desktop with VS Code (Microsoft APT repo, fingerprint
+  pinned) and the dev-ssh toolchain (git, build-essential, python3,
+  jq, tmux, ...). No autostart: VS Code sits in the XFCE menu.
+version: "1.0.0"
+from: ubuntu-xfce
+
+# amd64 first: that is the published catalog contract. Microsoft ships
+# arm64 debs too — extending is a catalog decision, not a build one.
+archs: [linux/amd64]
+
+variants:
+  - name: ubuntu-devtools
+    smoke:
+      vnc: true

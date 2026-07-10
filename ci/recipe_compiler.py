@@ -65,9 +65,13 @@ RUN apt-get update && \\
     rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/*
 """
 
-# Third-party repo, replicating apps/firefox/Dockerfile verbatim: keyring
-# verified against its published fingerprint, origin priority-pinned so
-# nothing can shadow the repo's packages.
+# Third-party repo, replicating apps/firefox/Dockerfile: keyring verified
+# against its published fingerprint, origin priority-pinned so nothing
+# can shadow the repo's packages. One deliberate departure from the
+# firefox original: the bootstrap tools are released with `apt-mark auto
+# + autoremove`, NOT `purge wget gpg` — a blind purge silently removes
+# any recipe package that Depends: on wget (google-chrome-stable does),
+# and the final dpkg -s turns any such removal into a build failure.
 APT_WITH_REPO = """\
 # hadolint ignore=DL3008
 RUN apt-get update && \\
@@ -84,7 +88,9 @@ RUN apt-get update && \\
     apt-get update && \\
     apt-get install -y --no-install-recommends \\
 {packages} \\
-    && apt-get purge -y --auto-remove wget gpg && \\
+    && apt-mark auto wget gpg >/dev/null && \\
+    apt-get autoremove -y --purge && \\
+    dpkg -s{package_args} >/dev/null && \\
     apt-get clean && \\
     rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/user/.gnupg
 """
@@ -188,6 +194,7 @@ def render(recipe: dict, context: str) -> str:
             pin=repo["pin"],
             origin=origin,
             packages=packages,
+            package_args="".join(f" {p}" for p in sorted(recipe["apt"])),
         ))
     else:
         parts.append(APT_SIMPLE.format(packages=packages))

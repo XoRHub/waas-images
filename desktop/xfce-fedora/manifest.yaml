@@ -1,0 +1,15 @@
+name: fedora-xfce
+layer: desktop
+os: fedora-43
+description: XFCE desktop on Fedora, VNC + RDP, derived from fedora-base-rdp.
+version: "1.0.0"
+from: fedora-base-rdp
+
+variants:
+  - name: fedora-xfce
+    smoke:
+      vnc: true
+      rdp: true
+      audio: true
+      env:
+        WAAS_RDP_ENABLED: "1"

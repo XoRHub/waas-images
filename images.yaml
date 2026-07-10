@@ -17,6 +17,9 @@ os:
   debian-13:
     buildArgs:
       OS_BASE_IMAGE: "debian:13-slim"
+  fedora-43:
+    buildArgs:
+      OS_BASE_IMAGE: "fedora:43"
 
 defaults:
   os: ubuntu-24.04

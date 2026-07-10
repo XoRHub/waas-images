@@ -38,9 +38,9 @@
     },
     {
       "customType": "regex",
-      "description": "OS_BASE_IMAGE default in the parameterized apt base Dockerfile.",
+      "description": "OS_BASE_IMAGE defaults in the base Dockerfiles (apt + dnf).",
       "managerFilePatterns": [
-        "/^base/ubuntu/Dockerfile$/"
+        "/^base/(ubuntu|fedora)/Dockerfile$/"
       ],
       "matchStrings": [
         "ARG OS_BASE_IMAGE=(?<depName>[a-z-]+):(?<currentValue>[a-z0-9.-]+)"

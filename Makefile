@@ -35,6 +35,15 @@ else ifeq ($(IMAGE),debian-base-rdp)
 else ifeq ($(IMAGE),debian-xfce)
   CTX := desktop/xfce
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/debian-base-rdp:dev
+else ifeq ($(IMAGE),fedora-base-vnc)
+  CTX := base/fedora
+  ARGS := --build-arg INSTALL_RDP=0
+else ifeq ($(IMAGE),fedora-base-rdp)
+  CTX := base/fedora
+  ARGS := --build-arg INSTALL_RDP=1
+else ifeq ($(IMAGE),fedora-xfce)
+  CTX := desktop/xfce-fedora
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/fedora-base-rdp:dev
 endif
 
 .PHONY: build run smoke lint clean recipes

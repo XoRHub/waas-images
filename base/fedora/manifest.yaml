@@ -1,0 +1,34 @@
+# Image manifest — discovered automatically by ci/generate_pipeline.py.
+#
+# dnf-based sibling of base/ubuntu: its own Dockerfile and its own COPY
+# of the rootfs scripts (see the Dockerfile header for the deliberate
+# duplication and its cost). Scope matches Debian's: base + desktop
+# only, apps/ stays on Ubuntu.
+name: fedora-base
+layer: base
+os: fedora-43
+description: >
+  Headless Fedora graphical session (TigerVNC Xvnc + openbox fallback),
+  VNC and optional xrdp bridge, PulseAudio for guacd's VNC audio
+  stream, non-root, read-only-rootfs friendly.
+version: "1.0.0"
+
+variants:
+  - name: fedora-base-vnc
+    buildArgs:
+      INSTALL_RDP: "0"
+    smoke:
+      vnc: true
+      rdp: false
+      audio: true
+
+  - name: fedora-base-rdp
+    buildArgs:
+      INSTALL_RDP: "1"
+    smoke:
+      vnc: false
+      rdp: true
+      audio: true
+      env:
+        WAAS_VNC_ENABLED: "0"
+        WAAS_RDP_ENABLED: "1"

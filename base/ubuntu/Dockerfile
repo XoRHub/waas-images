@@ -77,7 +77,12 @@ RUN apt-get update && \
         ln -s /tmp/waas/xrdp/xrdp.ini    /etc/xrdp/xrdp.ini && \
         ln -s /tmp/waas/xrdp/rsakeys.ini /etc/xrdp/rsakeys.ini && \
         ln -s /tmp/waas/xrdp/cert.pem    /etc/xrdp/cert.pem && \
-        ln -s /tmp/waas/xrdp/key.pem     /etc/xrdp/key.pem; \
+        ln -s /tmp/waas/xrdp/key.pem     /etc/xrdp/key.pem && \
+        # xrdp pulls in ssl-cert, whose postinst bakes an unused snakeoil
+        # keypair into the image; it trips trivy's secret scanner (HIGH:
+        # AsymmetricPrivateKey) and nothing reads it since we symlink our
+        # own cert/key above.
+        rm -f /etc/ssl/private/ssl-cert-snakeoil.key /etc/ssl/certs/ssl-cert-snakeoil.pem; \
     fi && \
     # dbus-launch (session bus) wants a machine id; bake one so it works
     # on a read-only rootfs. Identical across containers — acceptable, it

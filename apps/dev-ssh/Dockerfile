@@ -35,6 +35,11 @@ RUN apt-get update && \
         python3-venv \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* && \
+    # openssh-server's postinst generates host keys at install time; drop
+    # them so the image carries none — they are (re)generated at boot into
+    # the runtime dir per the header comment above, and baked keys trip
+    # trivy's secret scanner (HIGH: AsymmetricPrivateKey) for no benefit.
+    rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub && \
     # sshd refuses to start without its privilege-separation directory,
     # even when running unprivileged.
     mkdir -p /run/sshd

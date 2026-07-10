@@ -1,0 +1,266 @@
+# waas-images — GitHub Actions pipeline (GitHub is the canonical forge;
+# .gitlab-ci.yml keeps working unchanged while both coexist).
+#
+# Static skeleton, dynamic content: the setup job runs
+# ci/generate_pipeline.py --emitter github (same discovery, toposort and
+# validation as the GitLab child pipeline) and exposes one build matrix
+# and one merge matrix per layer depth; the layer-N/merge-N jobs below
+# consume them via fromJSON. A manifest that creates depth > 2 fails
+# setup with an explicit message — add a layer-3/merge-3 pair here and
+# bump GH_MAX_DEPTH in the generator.
+#
+# The heavy lifting stays in ci/*.sh (the portable layer, shared with
+# GitLab): jobs export the CI_* variable names the scripts already
+# read. Differences vs GitLab, both deliberate:
+#   registry  ghcr.io/<owner>/<repo>/<image> (GitLab pushes to its own
+#             registry — two registries while the forges coexist)
+#   signing   cosign keyless OIDC (COSIGN_KEYLESS=1 + id-token: write)
+#             instead of the COSIGN_PRIVATE_KEY key mode
+#
+# arm64 legs run natively on ubuntu-24.04-arm (free for public repos).
+# Fallback: set the repository variable WAAS_IMAGES_BUILD_STRATEGY=qemu
+# to route every build to the amd64 fleet under emulation (same
+# variable as GitLab; build_image.sh installs binfmt itself).
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write   # cosign keyless OIDC
+
+env:
+  WAAS_IMAGES_BUILD_STRATEGY: ${{ vars.WAAS_IMAGES_BUILD_STRATEGY || 'native' }}
+  CI_REGISTRY: ghcr.io
+  CI_REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+  CI_REGISTRY_USER: ${{ github.actor }}
+  CI_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+  CI_COMMIT_SHA: ${{ github.sha }}
+  CI_COMMIT_BRANCH: ${{ github.ref_name }}
+  CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+  CI_PROJECT_URL: ${{ github.server_url }}/${{ github.repository }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialise recipe Dockerfiles
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 ci/generate_pipeline.py >/dev/null
+      - name: hadolint
+        run: |
+          # shellcheck disable=SC2046  # find-output splitting is deliberate (no spaces in repo paths), same as the GitLab job
+          docker run --rm -v "$PWD:/mnt" -w /mnt hadolint/hadolint:2.12.0-alpine \
+            hadolint --failure-threshold warning \
+            $(find . -name Dockerfile -o -name Dockerfile.generated)
+      - name: shellcheck
+        run: shellcheck ci/*.sh base/*/rootfs/usr/local/bin/*
+
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      layer0: ${{ steps.matrices.outputs.layer0 }}
+      layer1: ${{ steps.matrices.outputs.layer1 }}
+      layer2: ${{ steps.matrices.outputs.layer2 }}
+      merge0: ${{ steps.matrices.outputs.merge0 }}
+      merge1: ${{ steps.matrices.outputs.merge1 }}
+      merge2: ${{ steps.matrices.outputs.merge2 }}
+      short_sha: ${{ steps.matrices.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate matrices
+        id: matrices
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 ci/generate_pipeline.py --emitter github
+          for key in layer0 layer1 layer2 merge0 merge1 merge2; do
+            echo "${key}=$(jq -c ".${key}" github-matrices.json)" >> "$GITHUB_OUTPUT"
+          done
+          echo "short_sha=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+
+  layer-0:
+    needs: [lint, setup]
+    if: needs.setup.outputs.layer0 != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer0) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+      IMG_BUILD_ARGS: ${{ matrix.IMG_BUILD_ARGS }}
+      IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
+      IMG_DOCKERFILE: ${{ matrix.IMG_DOCKERFILE }}
+      IMG_OS: ${{ matrix.IMG_OS }}
+      IMG_LAYER: ${{ matrix.IMG_LAYER }}
+      IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
+      IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
+      SMOKE_PROFILE: ${{ matrix.SMOKE_PROFILE }}
+      SMOKE_VNC: ${{ matrix.SMOKE_VNC }}
+      SMOKE_RDP: ${{ matrix.SMOKE_RDP }}
+      SMOKE_SSH: ${{ matrix.SMOKE_SSH }}
+      SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
+      SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialise recipe Dockerfiles
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 ci/generate_pipeline.py --emitter github >/dev/null
+      - name: Build, smoke, scan, push
+        run: sh ci/build_image.sh
+
+  merge-0:
+    needs: [setup, layer-0]
+    if: needs.setup.outputs.merge0 != '[]'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.merge0) }}
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      COSIGN_KEYLESS: "1"
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCHS: ${{ matrix.IMG_ARCHS }}
+      IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
+      IMG_OS: ${{ matrix.IMG_OS }}
+      IMG_LAYER: ${{ matrix.IMG_LAYER }}
+      IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
+      IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge manifest list + sign
+        run: sh ci/merge_image.sh
+
+  layer-1:
+    needs: [setup, layer-0]
+    if: ${{ !cancelled() && needs.setup.outputs.layer1 != '[]' && (needs.layer-0.result == 'success' || needs.layer-0.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer1) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+      IMG_BUILD_ARGS: ${{ matrix.IMG_BUILD_ARGS }}
+      IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
+      IMG_DOCKERFILE: ${{ matrix.IMG_DOCKERFILE }}
+      IMG_OS: ${{ matrix.IMG_OS }}
+      IMG_LAYER: ${{ matrix.IMG_LAYER }}
+      IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
+      IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
+      SMOKE_PROFILE: ${{ matrix.SMOKE_PROFILE }}
+      SMOKE_VNC: ${{ matrix.SMOKE_VNC }}
+      SMOKE_RDP: ${{ matrix.SMOKE_RDP }}
+      SMOKE_SSH: ${{ matrix.SMOKE_SSH }}
+      SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
+      SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialise recipe Dockerfiles
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 ci/generate_pipeline.py --emitter github >/dev/null
+      - name: Build, smoke, scan, push
+        run: sh ci/build_image.sh
+
+  merge-1:
+    needs: [setup, layer-1]
+    if: ${{ !cancelled() && needs.setup.outputs.merge1 != '[]' && needs.layer-1.result == 'success' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.merge1) }}
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      COSIGN_KEYLESS: "1"
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCHS: ${{ matrix.IMG_ARCHS }}
+      IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
+      IMG_OS: ${{ matrix.IMG_OS }}
+      IMG_LAYER: ${{ matrix.IMG_LAYER }}
+      IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
+      IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge manifest list + sign
+        run: sh ci/merge_image.sh
+
+  layer-2:
+    needs: [setup, layer-1]
+    if: ${{ !cancelled() && needs.setup.outputs.layer2 != '[]' && (needs.layer-1.result == 'success' || needs.layer-1.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer2) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+      IMG_BUILD_ARGS: ${{ matrix.IMG_BUILD_ARGS }}
+      IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
+      IMG_DOCKERFILE: ${{ matrix.IMG_DOCKERFILE }}
+      IMG_OS: ${{ matrix.IMG_OS }}
+      IMG_LAYER: ${{ matrix.IMG_LAYER }}
+      IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
+      IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
+      SMOKE_PROFILE: ${{ matrix.SMOKE_PROFILE }}
+      SMOKE_VNC: ${{ matrix.SMOKE_VNC }}
+      SMOKE_RDP: ${{ matrix.SMOKE_RDP }}
+      SMOKE_SSH: ${{ matrix.SMOKE_SSH }}
+      SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
+      SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialise recipe Dockerfiles
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 ci/generate_pipeline.py --emitter github >/dev/null
+      - name: Build, smoke, scan, push
+        run: sh ci/build_image.sh
+
+  merge-2:
+    needs: [setup, layer-2]
+    if: ${{ !cancelled() && needs.setup.outputs.merge2 != '[]' && needs.layer-2.result == 'success' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.merge2) }}
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      COSIGN_KEYLESS: "1"
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCHS: ${{ matrix.IMG_ARCHS }}
+      IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
+      IMG_OS: ${{ matrix.IMG_OS }}
+      IMG_LAYER: ${{ matrix.IMG_LAYER }}
+      IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
+      IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge manifest list + sign
+        run: sh ci/merge_image.sh

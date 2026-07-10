@@ -64,18 +64,36 @@ DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${SHA_TAG}" --format '{{.Man
 log "published ${IMAGE}@${DIGEST}"
 
 # ----------------------------------------------------------------- sign
-# Optional keyed signing: set COSIGN_PRIVATE_KEY (+ COSIGN_PASSWORD) as
-# masked CI variables. Skipped when absent — branch tags are throwaway;
-# platform releases have their own mandatory signing gate.
-if [ -n "${COSIGN_PRIVATE_KEY:-}" ] && [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
-    log "cosign sign"
-    # Registry auth via flags: the job's ~/.docker is not visible to a
-    # container started on the dind daemon, so mounting it cannot work.
-    docker run --rm -e COSIGN_PRIVATE_KEY -e COSIGN_PASSWORD \
-        ghcr.io/sigstore/cosign/cosign:v2.5.0 sign --yes \
-        --key env://COSIGN_PRIVATE_KEY \
-        --registry-username "${CI_REGISTRY_USER}" \
-        --registry-password "${CI_REGISTRY_PASSWORD}" \
-        -a revision="${CI_COMMIT_SHA}" \
-        "${IMAGE}@${DIGEST}"
+# Two modes, both default-branch only (branch tags are throwaway):
+#   keyed   — COSIGN_PRIVATE_KEY (+ COSIGN_PASSWORD) as masked CI
+#             variables; the GitLab setup.
+#   keyless — COSIGN_KEYLESS=1 (set by the GitHub workflow, which also
+#             declares permissions id-token: write): OIDC identity
+#             certificate via the ambient ACTIONS_ID_TOKEN_REQUEST_*
+#             env. A verifying policy-controller must check the
+#             certificate identity on GitHub-signed images and the
+#             public key on GitLab-signed ones while both coexist.
+# Skipped when neither is configured.
+if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
+    if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then
+        log "cosign sign (key)"
+        # Registry auth via flags: the job's ~/.docker is not visible to a
+        # container started on the dind daemon, so mounting it cannot work.
+        docker run --rm -e COSIGN_PRIVATE_KEY -e COSIGN_PASSWORD \
+            ghcr.io/sigstore/cosign/cosign:v2.5.0 sign --yes \
+            --key env://COSIGN_PRIVATE_KEY \
+            --registry-username "${CI_REGISTRY_USER}" \
+            --registry-password "${CI_REGISTRY_PASSWORD}" \
+            -a revision="${CI_COMMIT_SHA}" \
+            "${IMAGE}@${DIGEST}"
+    elif [ "${COSIGN_KEYLESS:-0}" = "1" ]; then
+        log "cosign sign (keyless OIDC)"
+        docker run --rm \
+            -e ACTIONS_ID_TOKEN_REQUEST_TOKEN -e ACTIONS_ID_TOKEN_REQUEST_URL \
+            ghcr.io/sigstore/cosign/cosign:v2.5.0 sign --yes \
+            --registry-username "${CI_REGISTRY_USER}" \
+            --registry-password "${CI_REGISTRY_PASSWORD}" \
+            -a revision="${CI_COMMIT_SHA}" \
+            "${IMAGE}@${DIGEST}"
+    fi
 fi

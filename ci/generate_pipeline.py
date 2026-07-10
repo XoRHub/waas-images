@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
-"""Generate the GitLab child pipeline from images.yaml + discovered manifests.
+"""Generate the CI build matrix from images.yaml + discovered manifests.
 
 Discovery: every {base,desktop,apps}/*/manifest.yaml becomes, per
-variant, one NATIVE build job per architecture (runner tags amd/arm —
-no QEMU) plus one merge job assembling the arch tags into the manifest
-list. Jobs are placed in stages by dependency depth (a variant whose
-`from` names another variant builds one stage later), and each arch
-chain is independent: `ARG BASE_IMAGE` points at the parent's SAME-ARCH
-tag pushed earlier in the same pipeline.
+variant, one NATIVE build job per architecture plus one merge job
+assembling the arch tags into the manifest list. Jobs are placed in
+stages by dependency depth (a variant whose `from` names another
+variant builds one stage later), and each arch chain is independent:
+`ARG BASE_IMAGE` points at the parent's SAME-ARCH tag pushed earlier
+in the same pipeline.
 
-Output: build-pipeline.yml (consumed by the parent's trigger job).
+Two emitters over the same discovery/toposort/validation
+(--emitter, default gitlab):
+  gitlab  build-pipeline.yml — full child pipeline consumed by the
+          parent's trigger job (runner tags amd/arm).
+  github  github-matrices.json — per-layer-depth build/merge matrices
+          consumed by the committed .github/workflows/build.yml
+          (fromJSON); the workflow skeleton is static.
 """
 from __future__ import annotations
 
+import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -123,6 +131,60 @@ def validate_archs(variants: dict[str, dict]) -> None:
                 sys.exit(f"{name}: parent {v['from']!r} does not build {sorted(missing)}")
 
 
+def build_vars(v: dict, variants: dict[str, dict]) -> dict:
+    """The IMG_*/SMOKE_* contract consumed by ci/build_image.sh — one
+    source of truth for both emitters."""
+    out = {
+        "IMG_NAME": v["name"],
+        "IMG_CONTEXT": v["context"],
+        "IMG_VERSION": v["version"],
+        # OCI label sources (build_image.sh --label / merge_image.sh
+        # index annotations): classification metadata for the future
+        # catalog tooling.
+        "IMG_OS": v["os"],
+        "IMG_LAYER": v["layer"],
+        "IMG_DESCRIPTION": v["description"],
+        "IMG_PROFILE": v["profile"],
+        "IMG_BUILD_ARGS": " ".join(
+            f"{k}={val}" for k, val in sorted(v["build_args"].items())
+        ),
+        # Parent ref minus the -g<sha>-<arch> suffix, which only the
+        # build job knows (build_image.sh appends it).
+        "IMG_FROM_REF": (
+            f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
+        ),
+        "SMOKE_PROFILE": v["profile"],
+        "SMOKE_VNC": "1" if v["smoke"].get("vnc") else "0",
+        "SMOKE_RDP": "1" if v["smoke"].get("rdp") else "0",
+        "SMOKE_SSH": "1" if v["smoke"].get("ssh") else "0",
+        "SMOKE_AUDIO": "1" if v["smoke"].get("audio") else "0",
+        "SMOKE_ENV": " ".join(
+            f"{k}={val}" for k, val in sorted(v["smoke"].get("env", {}).items())
+        ),
+    }
+    if v["dockerfile"]:
+        out["IMG_DOCKERFILE"] = v["dockerfile"]
+    return out
+
+
+def merge_vars(v: dict, variants: dict[str, dict]) -> dict:
+    """The IMG_* contract consumed by ci/merge_image.sh (same OCI
+    metadata as the build jobs: the manifest-list index does not inherit
+    per-arch config labels, so the merge re-asserts them)."""
+    return {
+        "IMG_NAME": v["name"],
+        "IMG_VERSION": v["version"],
+        "IMG_ARCHS": ",".join(v["archs"]),
+        "IMG_OS": v["os"],
+        "IMG_LAYER": v["layer"],
+        "IMG_DESCRIPTION": v["description"],
+        "IMG_PROFILE": v["profile"],
+        "IMG_FROM_REF": (
+            f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
+        ),
+    }
+
+
 def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
     depths = {name: stage_of(variants, name) for name in variants}
     stages = [f"layer-{d}" for d in sorted(set(depths.values()))]
@@ -153,36 +215,7 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
     }
 
     for name, v in sorted(variants.items(), key=lambda kv: (depths[kv[0]], kv[0])):
-        common_vars = {
-            "IMG_NAME": name,
-            "IMG_CONTEXT": v["context"],
-            "IMG_VERSION": v["version"],
-            # OCI label sources (build_image.sh --label / merge_image.sh
-            # index annotations): classification metadata for the future
-            # catalog tooling.
-            "IMG_OS": v["os"],
-            "IMG_LAYER": v["layer"],
-            "IMG_DESCRIPTION": v["description"],
-            "IMG_PROFILE": v["profile"],
-            "IMG_BUILD_ARGS": " ".join(
-                f"{k}={val}" for k, val in sorted(v["build_args"].items())
-            ),
-            # Parent ref minus the -g<sha>-<arch> suffix, which only the
-            # build job knows (build_image.sh appends it).
-            "IMG_FROM_REF": (
-                f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
-            ),
-            "SMOKE_PROFILE": v["profile"],
-            "SMOKE_VNC": "1" if v["smoke"].get("vnc") else "0",
-            "SMOKE_RDP": "1" if v["smoke"].get("rdp") else "0",
-            "SMOKE_SSH": "1" if v["smoke"].get("ssh") else "0",
-            "SMOKE_AUDIO": "1" if v["smoke"].get("audio") else "0",
-            "SMOKE_ENV": " ".join(
-                f"{k}={val}" for k, val in sorted(v["smoke"].get("env", {}).items())
-            ),
-        }
-        if v["dockerfile"]:
-            common_vars["IMG_DOCKERFILE"] = v["dockerfile"]
+        common_vars = build_vars(v, variants)
 
         for arch in v["archs"]:
             suffix = arch.removeprefix("linux/")
@@ -210,26 +243,58 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
         pipeline[f"merge:{name}"] = {
             "stage": f"layer-{depths[name]}",
             "needs": [f"build:{name}:{a.removeprefix('linux/')}" for a in v["archs"]],
-            "variables": {
-                "IMG_NAME": name,
-                "IMG_VERSION": v["version"],
-                "IMG_ARCHS": ",".join(v["archs"]),
-                # Same OCI metadata as the build jobs: the manifest-list
-                # index does not inherit per-arch config labels, so the
-                # merge job re-asserts them as index annotations.
-                "IMG_OS": v["os"],
-                "IMG_LAYER": v["layer"],
-                "IMG_DESCRIPTION": v["description"],
-                "IMG_PROFILE": v["profile"],
-                "IMG_FROM_REF": common_vars["IMG_FROM_REF"],
-            },
+            "variables": merge_vars(v, variants),
             "script": ["sh ci/merge_image.sh"],
         }
 
     return yaml.safe_dump(pipeline, sort_keys=False, width=120)
 
 
+# GitHub-hosted runner labels per build platform. ubuntu-24.04-arm =
+# GitHub's hosted arm64 fleet (free for public repos; check billing
+# before enabling on a private one — WAAS_IMAGES_BUILD_STRATEGY=qemu
+# routes everything to the amd64 fleet as the fallback, same variable
+# as GitLab).
+GH_RUNNERS = {"linux/amd64": "ubuntu-24.04", "linux/arm64": "ubuntu-24.04-arm"}
+# The committed workflow has exactly layer-0/1/2 + merge-0/1/2 jobs.
+GH_MAX_DEPTH = 2
+
+
+def emit_github(variants: dict[str, dict], strategy: str) -> str:
+    """Per-layer-depth build/merge matrices consumed by the committed
+    .github/workflows/build.yml via fromJSON. The workflow skeleton is
+    static; only these matrices vary."""
+    depths = {name: stage_of(variants, name) for name in variants}
+    deepest = max(depths.values())
+    if deepest > GH_MAX_DEPTH:
+        sys.exit(
+            f"layer depth {deepest} exceeds the {GH_MAX_DEPTH} wired into "
+            ".github/workflows/build.yml — add a layer-N/merge-N job pair "
+            "there (a ~10-line diff) and bump GH_MAX_DEPTH"
+        )
+
+    matrices: dict[str, list] = {}
+    for d in range(GH_MAX_DEPTH + 1):
+        matrices[f"layer{d}"] = []
+        matrices[f"merge{d}"] = []
+    for name, v in sorted(variants.items(), key=lambda kv: (depths[kv[0]], kv[0])):
+        d = depths[name]
+        common = build_vars(v, variants)
+        for arch in v["archs"]:
+            runner = GH_RUNNERS["linux/amd64"] if strategy == "qemu" \
+                else GH_RUNNERS[arch]
+            matrices[f"layer{d}"].append(
+                {**common, "IMG_ARCH": arch, "runner": runner})
+        matrices[f"merge{d}"].append(merge_vars(v, variants))
+    return json.dumps(matrices)
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--emitter", choices=("gitlab", "github"),
+                        default="gitlab")
+    args = parser.parse_args()
+
     # Operational fallback: set the CI variable WAAS_IMAGES_BUILD_STRATEGY
     # to "qemu" (e.g. arm fleet down) to route every build job to the amd
     # fleet under emulation. Same jobs, same gates, just slower.
@@ -239,8 +304,12 @@ def main() -> None:
     cfg = yaml.safe_load((ROOT / "images.yaml").read_text())
     variants = flatten_variants(load_manifests(), cfg)
     validate_archs(variants)
-    out = ROOT / "build-pipeline.yml"
-    out.write_text(emit(variants, cfg, strategy))
+    if args.emitter == "github":
+        out = ROOT / "github-matrices.json"
+        out.write_text(emit_github(variants, strategy))
+    else:
+        out = ROOT / "build-pipeline.yml"
+        out.write_text(emit(variants, cfg, strategy))
     print(f"generated {out.name} with {len(variants)} image(s), strategy={strategy}")
 
 

@@ -24,9 +24,13 @@ log() { printf '\n=== %s\n' "$*"; }
 log "docker login + buildx builder"
 docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
 # Container driver: required for the registry cache export. BuildKit
-# pinned; renovate keeps it fresh.
-docker buildx create --use --name waas \
-    --driver-opt image=moby/buildkit:v0.21.0 >/dev/null
+# pinned; renovate keeps it fresh. Reuse an existing builder (no-op on
+# fresh CI runners; lets a local run pre-provision one, e.g. with
+# host networking against a local registry).
+docker buildx inspect waas >/dev/null 2>&1 || \
+    docker buildx create --name waas \
+        --driver-opt image=moby/buildkit:v0.21.0 >/dev/null
+docker buildx use waas
 
 # QEMU fallback: when this job lands on a runner of another arch (the
 # generator routes everything to the amd fleet when
@@ -62,18 +66,46 @@ if [ -n "${IMG_FROM_REF:-}" ]; then
 fi
 
 # ---------------------------------------------------------------- build
+# OCI labels on every image (classification/catalog metadata; the merge
+# job re-asserts the same keys as index annotations, which per-arch
+# config labels do not propagate to). Applied here, NOT per Dockerfile,
+# so hand-written, recipe-generated and future images all carry them.
+# `source` reflects the forge that actually ran this build
+# (CI_PROJECT_URL on GitLab, exported by the workflow on GitHub):
+# revision/created describe THIS build, so pointing `source` at a forge
+# that did not produce the artifact would mislead provenance tooling.
+CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# One flag set for both invocations below: the artifact pushed after the
+# gates must be byte-identical (same config, cache-hot layers) to the
+# one that was smoked and scanned.
+buildx_build() {
+    # shellcheck disable=SC2086
+    docker buildx build \
+        --platform "${IMG_ARCH}" \
+        --provenance=false \
+        --cache-from "type=registry,ref=${CACHE_REF}" \
+        ${BUILD_ARG_FLAGS} \
+        ${DOCKERFILE_FLAG} \
+        --label "org.opencontainers.image.title=${IMG_NAME}" \
+        --label "org.opencontainers.image.description=${IMG_DESCRIPTION:-}" \
+        --label "org.opencontainers.image.version=${IMG_VERSION}" \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA:-}" \
+        --label "org.opencontainers.image.created=${CREATED}" \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL:-}" \
+        --label "org.opencontainers.image.licenses=Apache-2.0" \
+        --label "org.opencontainers.image.vendor=XorHub" \
+        --label "io.xorhub.waas.os=${IMG_OS:-}" \
+        --label "io.xorhub.waas.layer=${IMG_LAYER:-}" \
+        --label "io.xorhub.waas.profile=${IMG_PROFILE:-standard}" \
+        --label "io.xorhub.waas.parent=${IMG_FROM_REF:-}" \
+        -t "${IMAGE}:${ARCH_TAG}" \
+        "$@" \
+        "${IMG_CONTEXT}"
+}
+
 log "build (${IMG_ARCH}) ${IMAGE}:${ARCH_TAG}"
-# shellcheck disable=SC2086
-docker buildx build \
-    --platform "${IMG_ARCH}" \
-    --load \
-    --provenance=false \
-    --cache-from "type=registry,ref=${CACHE_REF}" \
-    --cache-to "type=registry,ref=${CACHE_REF},mode=max" \
-    ${BUILD_ARG_FLAGS} \
-    ${DOCKERFILE_FLAG} \
-    -t "${IMAGE}:${ARCH_TAG}" \
-    "${IMG_CONTEXT}"
+buildx_build --load --cache-to "type=registry,ref=${CACHE_REF},mode=max"
 
 # ---------------------------------------------------------------- smoke
 log "smoke test"
@@ -92,5 +124,11 @@ docker run --rm \
     "${IMAGE}:${ARCH_TAG}"
 
 # ----------------------------------------------------------------- push
-log "push ${IMAGE}:${ARCH_TAG}"
-docker push "${IMAGE}:${ARCH_TAG}"
+# Re-run the SAME build (cache-hot: no layer work) with a registry
+# output in OCI mediatypes, instead of `docker push`: the engine pushes
+# Docker mediatypes, and a Docker manifest LIST cannot carry the index
+# annotations merge_image.sh sets (buildx drops them silently — verified
+# live). Gates stay ahead of the registry: this runs only after smoke
+# and trivy passed on the --load'ed image.
+log "push ${IMAGE}:${ARCH_TAG} (OCI mediatypes)"
+buildx_build --output type=registry,oci-mediatypes=true

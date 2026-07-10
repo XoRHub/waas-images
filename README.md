@@ -110,7 +110,38 @@ same gates, just slower.
 
 The smoke test is also the hardening gate: every image must boot with
 `--read-only --cap-drop ALL --security-opt no-new-privileges` and answer
-a real RFB banner / X.224 handshake. See `HARDENING.md`.
+a real RFB banner / X.224 handshake, and its setuid/setgid set must be
+empty (exactly `/usr/bin/sudo` on `-dev` profiles). See `HARDENING.md`.
+
+## Image metadata (labels & index annotations)
+
+Every published image carries the same metadata twice — as OCI config
+labels on each per-arch image (`ci/build_image.sh --label`) and as OCI
+index annotations on the multi-arch manifest list
+(`ci/merge_image.sh --annotation "index:…"`, which per-arch labels do
+not propagate to; the push uses OCI mediatypes for exactly this
+reason). Set centrally in the CI scripts, never per Dockerfile, so
+hand-written and recipe-generated images cannot drift. Intended
+consumer: catalog/classification tooling (today the governance catalog
+is maintained by hand; these keys are its future source of truth).
+
+| Key | Value |
+|---|---|
+| `org.opencontainers.image.title` | variant name (`ubuntu-xfce`, …) |
+| `org.opencontainers.image.description` | manifest `description:` |
+| `org.opencontainers.image.version` | manifest `version:` |
+| `org.opencontainers.image.revision` | full git commit of the build |
+| `org.opencontainers.image.created` | build timestamp (UTC, RFC 3339) |
+| `org.opencontainers.image.source` | URL of the forge that ran the build (`CI_PROJECT_URL` on GitLab) |
+| `org.opencontainers.image.licenses` | `Apache-2.0` |
+| `org.opencontainers.image.vendor` | `XorHub` |
+| `io.xorhub.waas.os` | resolved `os:` key (`ubuntu-24.04`, `debian-13`, `fedora-43`) |
+| `io.xorhub.waas.layer` | `base` / `desktop` / `apps` |
+| `io.xorhub.waas.profile` | `standard` or `dev` |
+| `io.xorhub.waas.parent` | parent ref (`ubuntu-xfce:1.1.0`), empty on layer roots |
+
+Verify: `docker buildx imagetools inspect <ref> --raw` (index) or
+`docker inspect <arch-ref>` (config labels).
 
 ## Adding an app image
 

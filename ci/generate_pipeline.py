@@ -157,6 +157,13 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
             "IMG_NAME": name,
             "IMG_CONTEXT": v["context"],
             "IMG_VERSION": v["version"],
+            # OCI label sources (build_image.sh --label / merge_image.sh
+            # index annotations): classification metadata for the future
+            # catalog tooling.
+            "IMG_OS": v["os"],
+            "IMG_LAYER": v["layer"],
+            "IMG_DESCRIPTION": v["description"],
+            "IMG_PROFILE": v["profile"],
             "IMG_BUILD_ARGS": " ".join(
                 f"{k}={val}" for k, val in sorted(v["build_args"].items())
             ),
@@ -207,6 +214,14 @@ def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
                 "IMG_NAME": name,
                 "IMG_VERSION": v["version"],
                 "IMG_ARCHS": ",".join(v["archs"]),
+                # Same OCI metadata as the build jobs: the manifest-list
+                # index does not inherit per-arch config labels, so the
+                # merge job re-asserts them as index annotations.
+                "IMG_OS": v["os"],
+                "IMG_LAYER": v["layer"],
+                "IMG_DESCRIPTION": v["description"],
+                "IMG_PROFILE": v["profile"],
+                "IMG_FROM_REF": common_vars["IMG_FROM_REF"],
             },
             "script": ["sh ci/merge_image.sh"],
         }

@@ -30,8 +30,11 @@
 # /init as root for its full feature set; a hand-rolled script gives no
 # restart/ordering semantics).
 
-ARG UBUNTU_VERSION=24.04
-FROM ubuntu:${UBUNTU_VERSION}
+# Full base reference so one parameterized Dockerfile serves every
+# apt-based OS in images.yaml's os: map (ubuntu-24.04, debian-13, ...).
+ARG OS_BASE_IMAGE=ubuntu:24.04
+# hadolint ignore=DL3006
+FROM ${OS_BASE_IMAGE}
 
 # Fixed, overridable identity. /home/user is the contract with the
 # operator: the Workspace home PVC is mounted there.

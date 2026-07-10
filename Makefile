@@ -26,6 +26,15 @@ else ifeq ($(IMAGE),ubuntu-firefox)
 else ifeq ($(IMAGE),dev-ssh)
   CTX := apps/dev-ssh
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-base-vnc:dev
+else ifeq ($(IMAGE),debian-base-vnc)
+  CTX := base/ubuntu
+  ARGS := --build-arg INSTALL_RDP=0 --build-arg OS_BASE_IMAGE=debian:13-slim
+else ifeq ($(IMAGE),debian-base-rdp)
+  CTX := base/ubuntu
+  ARGS := --build-arg INSTALL_RDP=1 --build-arg OS_BASE_IMAGE=debian:13-slim
+else ifeq ($(IMAGE),debian-xfce)
+  CTX := desktop/xfce
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/debian-base-rdp:dev
 endif
 
 .PHONY: build run smoke lint clean recipes

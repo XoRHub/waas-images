@@ -1,11 +1,22 @@
 name: ubuntu-xfce
 layer: desktop
-description: XFCE desktop, VNC + RDP, derived from ubuntu-base-rdp.
-version: "1.0.3"
+description: XFCE desktop, VNC + RDP, derived from the apt base-rdp image.
+version: "1.1.0"
 from: ubuntu-base-rdp
 
 variants:
   - name: ubuntu-xfce
+    smoke:
+      vnc: true
+      rdp: true
+      audio: true
+      env:
+        WAAS_RDP_ENABLED: "1"
+
+  # Debian 13 leg: same Dockerfile, parent switched to the debian base.
+  - name: debian-xfce
+    os: debian-13
+    from: debian-base-rdp
     smoke:
       vnc: true
       rdp: true

@@ -6,13 +6,17 @@
 # ci/generate_pipeline.py merges this with the discovered manifests and
 # emits the GitLab child pipeline (topologically ordered on `from`).
 
-# Base OS matrix. Manifests may reference an entry via `os:`; today only
-# ubuntu-24.04 exists, a future ubuntu-26.04 or debian-13 is one entry +
-# one build-arg away, no generator change needed.
+# Base OS matrix. Manifests (or individual variants) reference an entry
+# via `os:`; the buildArgs feed the parameterized FROM of the apt base
+# Dockerfile (base/ubuntu — historical name kept, it builds Debian too;
+# Fedora, dnf-based, has its own tree under base/fedora).
 os:
   ubuntu-24.04:
     buildArgs:
-      UBUNTU_VERSION: "24.04"
+      OS_BASE_IMAGE: "ubuntu:24.04"
+  debian-13:
+    buildArgs:
+      OS_BASE_IMAGE: "debian:13-slim"
 
 defaults:
   os: ubuntu-24.04

@@ -12,11 +12,13 @@
   },
   "packageRules": [
     {
-      "description": "Ubuntu LTS bumps are a deliberate decision: group and label, never automerge.",
+      "description": "OS base bumps (Ubuntu LTS / Debian stable / Fedora) are a deliberate decision: group and label, never automerge.",
       "matchPackageNames": [
-        "ubuntu"
+        "ubuntu",
+        "debian",
+        "fedora"
       ],
-      "groupName": "ubuntu base image",
+      "groupName": "os base images",
       "labels": [
         "os-bump"
       ]
@@ -36,14 +38,24 @@
     },
     {
       "customType": "regex",
-      "description": "UBUNTU_VERSION default in the workspace base Dockerfile.",
+      "description": "OS_BASE_IMAGE default in the parameterized apt base Dockerfile.",
       "managerFilePatterns": [
         "/^base/ubuntu/Dockerfile$/"
       ],
       "matchStrings": [
-        "ARG UBUNTU_VERSION=(?<currentValue>[0-9.]+)"
+        "ARG OS_BASE_IMAGE=(?<depName>[a-z-]+):(?<currentValue>[a-z0-9.-]+)"
       ],
-      "depNameTemplate": "ubuntu",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "OS references in images.yaml's os: map (the values actually injected by CI).",
+      "managerFilePatterns": [
+        "/^images\\.yaml$/"
+      ],
+      "matchStrings": [
+        "OS_BASE_IMAGE: \"(?<depName>[a-z-]+):(?<currentValue>[a-z0-9.-]+)\""
+      ],
       "datasourceTemplate": "docker"
     }
   ]

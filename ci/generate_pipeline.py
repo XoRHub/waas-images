@@ -50,12 +50,17 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
     defaults = cfg.get("defaults", {})
     variants: dict[str, dict] = {}
     for m in manifests:
-        os_key = m.get("os", defaults.get("os"))
-        os_args = cfg.get("os", {}).get(os_key, {}).get("buildArgs", {})
         for v in m.get("variants", []):
             name = v["name"]
             if name in variants:
                 sys.exit(f"duplicate variant name {name!r}")
+            # os: resolves per variant (variant > manifest > defaults) so
+            # one parameterized Dockerfile publishes ubuntu-* and
+            # debian-* images from the same manifest.
+            os_key = v.get("os", m.get("os", defaults.get("os")))
+            if os_key not in cfg.get("os", {}):
+                sys.exit(f"{name}: unknown os {os_key!r} (not in images.yaml)")
+            os_args = cfg["os"][os_key].get("buildArgs", {})
             build_args = {
                 **defaults.get("buildArgs", {}),
                 **os_args,
@@ -66,6 +71,9 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 "name": name,
                 "context": m["context"],
                 "dockerfile": m["dockerfile"],
+                "os": os_key,
+                "layer": m.get("layer", m["context"].split("/", 1)[0]),
+                "description": " ".join(str(m.get("description", "")).split()),
                 "version": str(m["version"]),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),

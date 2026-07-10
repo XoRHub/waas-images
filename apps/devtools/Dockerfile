@@ -62,6 +62,7 @@ RUN apt-get update && \
 # installed in-session lands in the container layer: lost on pod
 # restart, only /home/user (PVC) survives.
 ARG INSTALL_SUDO=0
+# hadolint ignore=DL3008
 RUN if [ "${INSTALL_SUDO}" = "1" ]; then \
         apt-get update && \
         apt-get install -y --no-install-recommends sudo && \

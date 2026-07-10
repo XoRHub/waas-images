@@ -4,13 +4,20 @@ OCI images for WaaS Linux workspaces — Kasm-style, 100 % OSS, built for
 the platform's Workspace CR (operator → pod → guacd → wwt → browser).
 
 ```
-base/ubuntu     TigerVNC Xvnc + openbox fallback, optional xrdp   ┐
-desktop/xfce    XFCE on top of ubuntu-base-rdp                    ├─ layers
-apps/firefox    XFCE + policy-managed Firefox                     ┘
-images.yaml     global build config (OS matrix, archs, scan gate)
-ci/             pipeline generator, build/smoke scripts
-examples/       WorkspaceTemplate + NetworkPolicy
-HARDENING.md    verifiable hardening checklist + threat model
+base/ubuntu         TigerVNC Xvnc + openbox, optional xrdp — apt,   ┐
+                    OS-parameterized FROM: ubuntu-* AND debian-*    │
+base/fedora         dnf sibling (own Dockerfile + rootfs copy)      │
+desktop/xfce        XFCE on the apt base-rdp (ubuntu-* + debian-*)  ├─ layers
+desktop/xfce-fedora XFCE on fedora-base-rdp                         │
+apps/firefox        XFCE + policy-managed Firefox                   │
+apps/devtools       VS Code + toolchain (+ ubuntu-devtools-dev)     │
+apps/libreoffice    recipe:-generated (no Dockerfile in tree)       │
+apps/chrome         recipe:-generated, third-party repo             ┘
+images.yaml         global build config (OS matrix, archs, scan gate)
+ci/                 pipeline generator + recipe compiler, build/smoke scripts
+.github/workflows/  GitHub Actions pipeline (canonical forge)
+examples/           WorkspaceTemplate + NetworkPolicy
+HARDENING.md        verifiable hardening checklist + threat model
 ```
 
 ## Design in one paragraph
@@ -100,13 +107,27 @@ Tags are **immutable**:
 Multi-arch: `linux/amd64` + `linux/arm64` built NATIVELY on the amd/arm
 runner fleets — no QEMU in the nominal path (per-image override, e.g.
 Firefox is amd64-only until packages.mozilla.org's arm64 debs are
-validated). Pipeline: hadolint/shellcheck → generate → per image and per
-arch *build → smoke → trivy gate → push `-g<sha>-<arch>`*, then a merge
-job assembles the manifest list and cosign-signs it (sign only when
-`COSIGN_PRIVATE_KEY` is set). Both smoke and scan run on BOTH arches.
-Fallback: the CI variable `WAAS_IMAGES_BUILD_STRATEGY=qemu` routes every
-build job to the amd fleet under emulation (arm fleet down) — same jobs,
-same gates, just slower.
+validated). Pipeline: generate (incl. recipe compilation) →
+hadolint/shellcheck → per image and per arch *build → smoke → trivy
+gate → push `-g<sha>-<arch>` (OCI mediatypes)*, then a merge job
+assembles the annotated manifest list and cosign-signs it. Both smoke
+and scan run on BOTH arches. Fallback: the CI variable
+`WAAS_IMAGES_BUILD_STRATEGY=qemu` routes every build job to the amd
+fleet under emulation (arm fleet down) — same jobs, same gates, just
+slower.
+
+**Two forges, same scripts, two registries** — `ci/*.sh` is the
+portable layer; only the YAML dispatch differs:
+
+| | GitHub (canonical) | GitLab |
+|---|---|---|
+| Workflow | `.github/workflows/build.yml` (static skeleton + `--emitter github` matrices) | `.gitlab-ci.yml` → generated child pipeline |
+| Runners | `ubuntu-24.04` / `ubuntu-24.04-arm` hosted | `amd` / `arm` self-hosted fleets |
+| Registry | `ghcr.io/<owner>/waas-images/<image>` | GitLab project registry |
+| Signing | cosign **keyless OIDC** (`COSIGN_KEYLESS=1`, verify the certificate identity) | cosign **key** (`COSIGN_PRIVATE_KEY`, verify the public key) |
+
+A verifying policy-controller must accept both signature modes for as
+long as the two forges publish in parallel.
 
 The smoke test is also the hardening gate: every image must boot with
 `--read-only --cap-drop ALL --security-opt no-new-privileges` and answer

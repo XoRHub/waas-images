@@ -77,7 +77,11 @@ APT_WITH_REPO = """\
 RUN apt-get update && \\
     apt-get install -y --no-install-recommends wget gpg && \\
     install -d -m 0755 /etc/apt/keyrings && \\
-    wget -qO- {key_url} \\
+    # -4/--timeout/--tries: this fleet's IPv6 route is unreliable for
+    # dual-stack vendor CDNs (blackholed to at least Azure Front Door),
+    # so an unbounded/dual-stack wget can hang or return an empty key
+    # (see apps/devtools/Dockerfile, apps/firefox/Dockerfile).
+    wget -4 --timeout=20 --tries=3 -qO- {key_url} \\
         | gpg --dearmor -o /etc/apt/keyrings/{keyring}.gpg && \\
     gpg --show-keys --with-colons /etc/apt/keyrings/{keyring}.gpg \\
         | grep -q "^fpr:.*{fingerprint}" && \\

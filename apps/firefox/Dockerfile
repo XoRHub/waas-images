@@ -20,7 +20,10 @@ ARG FIREFOX_VERSION=*
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget gpg && \
     install -d -m 0755 /etc/apt/keyrings && \
-    wget --timeout=20 --tries=3 -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg \
+    # -4: this fleet's IPv6 route is unreliable for dual-stack vendor CDNs
+    # (see apps/devtools); force IPv4 here too even though this host is
+    # IPv4-only today, since that can change under us.
+    wget -4 --timeout=20 --tries=3 -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg \
         | gpg --dearmor -o /etc/apt/keyrings/packages.mozilla.org.gpg && \
     # --with-colons: machine-readable output, fingerprint unspaced.
     gpg --show-keys --with-colons /etc/apt/keyrings/packages.mozilla.org.gpg \

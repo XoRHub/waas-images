@@ -22,7 +22,10 @@ USER 0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget gpg && \
     install -d -m 0755 /etc/apt/keyrings && \
-    wget --timeout=20 --tries=3 -qO- https://packages.microsoft.com/keys/microsoft.asc \
+    # -4: packages.microsoft.com resolves an AAAA (Azure Front Door); this
+    # fleet's IPv6 route there is blackholed, so wget hangs on the IPv6
+    # address and --timeout/--tries alone still yields an empty key.
+    wget -4 --timeout=20 --tries=3 -qO- https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor -o /etc/apt/keyrings/packages.microsoft.com.gpg && \
     # --with-colons: machine-readable output, fingerprint unspaced.
     # Fingerprint read from the live key on 2026-07-11.

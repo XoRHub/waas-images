@@ -1,0 +1,47 @@
+# waas-images — scheduled refresh of catalog-kasmweb.yaml (README
+# § Image catalogs). GitHub twin of the GitLab scheduled pipeline, but
+# fully declarative: the cron lives here, no UI setup. Daily 06:00 UTC —
+# Kasm cuts releases every few months, so daily detection is generous
+# while staying far from Docker Hub's anonymous rate limits (same
+# cadence as the GitLab schedule).
+#
+# kasm/catalog-mapping.yaml stays hand-curated; this workflow only
+# resolves each image's newest X.Y.Z release tag from Docker Hub
+# (falling back to the mapping's knownVersion when Hub is unreachable —
+# the generator is best-effort by design) and republishes the asset on
+# the rolling `catalog` release that build.yml's catalog job also
+# publishes to. It never commits anything.
+#
+# Caveat: GitHub disables cron-triggered workflows after 60 days without
+# repo activity — re-enable from the Actions tab, or run the
+# workflow_dispatch trigger, which also serves as the manual refresh
+# path after editing the mapping.
+name: catalog-kasmweb
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create the rolling release + upload its asset
+
+jobs:
+  publish-catalog-kasmweb:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate catalog-kasmweb.yaml
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 ci/generate_kasm_catalog.py
+          python3 -c "import yaml; yaml.safe_load(open('catalog-kasmweb.yaml'))"
+      - name: Publish to the rolling catalog release
+        run: |
+          gh release view catalog >/dev/null 2>&1 || \
+            gh release create catalog --latest=false \
+              --title "WaaS picker catalogs" \
+              --notes "Rolling release holding the picker catalog files (README § Image catalogs). Assets are overwritten in place on every publication — always fetch, never pin."
+          gh release upload catalog catalog-kasmweb.yaml --clobber

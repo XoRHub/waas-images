@@ -9,10 +9,17 @@
 #           NATIVE build job per arch on the amd/arm runner fleets +
 #           one manifest-list merge job, staged by layer depth:
 #           base -> desktop -> apps)
+# catalog   secondary deliverables for the WaaS picker (README § Image
+#           catalogs): catalog-waas-images.yaml after every default-
+#           branch build, catalog-kasmweb.yaml on scheduled pipelines
+#           only. Published to the Generic Package Registry; never
+#           blocks image publication (allow_failure).
 #
 # Behaviour by ref:
 #   merge request:   build + smoke + scan, push of -g<sha> tags only
 #   default branch:  + immutable <version> tags + cosign signature
+#                    + catalog-waas-images.yaml publication
+#   schedule:        publish-catalog-kasmweb ONLY (no build)
 #
 # Tunables (CI/CD variables):
 #   TRIVY_SEVERITY    gate severities   (default HIGH,CRITICAL)
@@ -25,7 +32,15 @@
 # generate runs BEFORE lint: recipe: manifests have no committed
 # Dockerfile — ci/recipe_compiler.py materialises Dockerfile.generated
 # during generate-pipeline, and hadolint must see those files too.
-stages: [generate, lint, build]
+stages: [generate, lint, build, catalog]
+
+# Scheduled pipelines exist solely to refresh catalog-kasmweb.yaml —
+# every build-path job opts out of them via this anchor.
+.not-on-schedule: &not-on-schedule
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - when: on_success
 
 default:
   # lint/generate only — build jobs get their arch tag from the generator.
@@ -40,6 +55,7 @@ workflow:
 
 generate-pipeline:
   stage: generate
+  <<: *not-on-schedule
   image: python:3.12-slim
   script:
     - pip install --no-cache-dir pyyaml==6.0.2
@@ -54,6 +70,7 @@ generate-pipeline:
 
 hadolint:
   stage: lint
+  <<: *not-on-schedule
   image: hadolint/hadolint:2.12.0-alpine
   needs: [generate-pipeline]
   script:
@@ -61,13 +78,26 @@ hadolint:
 
 shellcheck:
   stage: lint
+  <<: *not-on-schedule
   image: koalaman/shellcheck-alpine:v0.10.0
   needs: []
   script:
     - shellcheck ci/*.sh base/*/rootfs/usr/local/bin/*
 
+# Unit tests for the catalog generators (stdlib unittest, Docker Hub
+# mocked — no network).
+catalog-tests:
+  stage: lint
+  <<: *not-on-schedule
+  image: python:3.12-slim
+  needs: []
+  script:
+    - pip install --no-cache-dir pyyaml==6.0.2
+    - python3 -m unittest discover -s ci/tests -v
+
 build-images:
   stage: build
+  <<: *not-on-schedule
   needs: [generate-pipeline, hadolint, shellcheck]
   variables:
     # Lets child-pipeline jobs pull the parent's generate-pipeline
@@ -78,3 +108,51 @@ build-images:
       - artifact: build-pipeline.yml
         job: generate-pipeline
     strategy: depend
+
+# Same guard as the immutable <version> tags: the catalog must only
+# ever reference refs that were actually pushed, i.e. default branch.
+# allow_failure: the catalog is a secondary deliverable — its failure
+# must never make a green build pipeline look red.
+publish-catalog-waas-images:
+  stage: catalog
+  image: python:3.12-slim
+  needs: [build-images]
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - pip install --no-cache-dir pyyaml==6.0.2
+    - apt-get update -qq && apt-get install -qq -y --no-install-recommends curl ca-certificates
+    - python3 ci/generate_catalog.py
+    - python3 -c "import yaml; yaml.safe_load(open('catalog-waas-images.yaml'))"
+    - |
+      curl --fail -H "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file catalog-waas-images.yaml \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/waas-catalog/latest/catalog-waas-images.yaml"
+  artifacts:
+    paths: [catalog-waas-images.yaml]
+    expire_in: 1 week
+
+# Scheduled pipelines only (Settings > CI/CD > Pipeline schedules —
+# manual one-time setup, see README § Image catalogs). Refreshes the
+# hand-curated kasm/catalog-mapping.yaml against Docker Hub's newest
+# release tags; the script falls back to knownVersion on any Hub
+# failure, so this job only fails on real bugs/config errors.
+publish-catalog-kasmweb:
+  stage: catalog
+  image: python:3.12-slim
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - pip install --no-cache-dir pyyaml==6.0.2
+    - apt-get update -qq && apt-get install -qq -y --no-install-recommends curl ca-certificates
+    - python3 ci/generate_kasm_catalog.py
+    - python3 -c "import yaml; yaml.safe_load(open('catalog-kasmweb.yaml'))"
+    - |
+      curl --fail -H "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file catalog-kasmweb.yaml \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/kasm-catalog/latest/catalog-kasmweb.yaml"
+  artifacts:
+    paths: [catalog-kasmweb.yaml]
+    expire_in: 1 week

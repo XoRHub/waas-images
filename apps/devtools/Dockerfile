@@ -22,7 +22,7 @@ USER 0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget gpg && \
     install -d -m 0755 /etc/apt/keyrings && \
-    wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
+    wget --timeout=20 --tries=3 -qO- https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor -o /etc/apt/keyrings/packages.microsoft.com.gpg && \
     # --with-colons: machine-readable output, fingerprint unspaced.
     # Fingerprint read from the live key on 2026-07-11.

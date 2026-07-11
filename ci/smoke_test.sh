@@ -52,7 +52,7 @@ docker run -d --name "${NAME}" \
     ${HARDEN_FLAGS} \
     --tmpfs /tmp \
     --tmpfs /run \
-    --tmpfs /home/user:mode=1777 \
+    --tmpfs /home/waas_user:mode=1777 \
     -p 15901:5901 -p 13389:3389 -p 12222:2222 \
     ${ENV_FLAGS} \
     "${SMOKE_IMAGE}" >/dev/null

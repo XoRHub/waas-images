@@ -2,8 +2,9 @@
 ;
 ; No sesman, no PAM: the single [vnc-local] backend bridges every RDP
 ; client onto the local Xvnc session. password=ask forwards the password
-; typed by the RDP client (i.e. sent by guacd from the template's
-; RDP_PASSWORD) as the VNC password — one shared session secret.
+; typed by the RDP client (i.e. sent by guacd from the session password
+; the platform resolves server-side) as the VNC password — one shared
+; session secret.
 [Globals]
 ini_version=1
 fork=false
@@ -34,7 +35,10 @@ name=waas-session
 lib=libvnc.so
 ip=127.0.0.1
 port=5901
-username=na
+; xrdp's libvnc backend does not use this value functionally (VncAuth is
+; password-only), but it reflects the conventional identity shared with
+; the system account and the platform's ConnectionInfo defaulting.
+username=waas_user
 ; The "ask" value below requires the RDP client to present the session
 ; password (RDP authentication ON, the default). The entrypoint replaces
 ; it with the literal password ONLY when RDP_AUTH_ENABLED=false was set

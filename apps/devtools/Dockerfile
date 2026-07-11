@@ -68,7 +68,7 @@ RUN apt-get update && \
     apt-get autoremove -y --purge && \
     dpkg -s code git build-essential python3 python3-venv jq curl vim less tmux >/dev/null && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/user/.gnupg
+    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/waas_user/.gnupg
 
 # ---- dev variant (ubuntu-devtools-dev) --------------------------------
 # INSTALL_SUDO=1 is only ever set by the *-dev manifest variant (the
@@ -78,7 +78,7 @@ RUN apt-get update && \
 # (readOnlyRootFilesystem: false, allowPrivilegeEscalation: true) — that
 # WorkspaceTemplate change lives in the platform repo. Anything
 # installed in-session lands in the container layer: lost on pod
-# restart, only /home/user (PVC) survives.
+# restart, only /home/waas_user (PVC) survives.
 ARG INSTALL_SUDO=0
 # hadolint ignore=DL3008
 RUN if [ "${INSTALL_SUDO}" = "1" ]; then \

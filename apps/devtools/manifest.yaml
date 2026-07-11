@@ -30,7 +30,7 @@ variants:
   # the runtime default capability set (cap-drop ALL keeps sudo dead —
   # setuid regains caps only within the bounding set). In-session
   # installs land in the container layer: lost on pod restart, only
-  # /home/user survives.
+  # /home/waas_user survives.
   - name: ubuntu-devtools-dev
     profile: dev
     buildArgs:

@@ -40,7 +40,7 @@ RUN apt-get update && \
     fi && \
     apt-get purge -y --auto-remove wget gpg && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/user/.gnupg
+    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/waas_user/.gnupg
 
 # Separate RUN: a trailing "|| true" on the apt chain above would mask
 # install failures (the suid sweep may legitimately find nothing).

@@ -96,7 +96,7 @@ RUN apt-get update && \\
     apt-get autoremove -y --purge && \\
     dpkg -s{package_args} >/dev/null && \\
     apt-get clean && \\
-    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/user/.gnupg
+    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/waas_user/.gnupg
 """
 
 SUID_STRIP = """\

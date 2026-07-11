@@ -27,7 +27,7 @@ defaults:
   # nodes. Manifests can restrict (see apps/firefox).
   archs: [linux/amd64, linux/arm64]
   # Fixed identity baked into every image; must match the operator's
-  # /home/user mount and the recommended pod fsGroup.
+  # /home/waas_user mount and the recommended pod fsGroup.
   buildArgs:
     WAAS_UID: "1000"
     WAAS_GID: "1000"

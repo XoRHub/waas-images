@@ -6,7 +6,7 @@ is enforced, so the list is verifiable, not aspirational.
 ## Enforced at build time (Dockerfile)
 
 - [x] **Non-root user** with fixed, build-arg-configurable UID/GID
-      (default `1000:1000`, user `user`, home `/home/user`).
+      (default `1000:1000`, user `waas_user`, home `/home/waas_user`).
       Ubuntu 24.04's default `ubuntu` user is removed.
       → `base/ubuntu/Dockerfile`, `USER` directive; verify:
       `docker run --rm <img> id` → `uid=1000`.
@@ -29,7 +29,7 @@ is enforced, so the list is verifiable, not aspirational.
 
 ## Enforced at runtime (image design + smoke test)
 
-- [x] **Read-only rootfs compatible**: only `/home/user`, `/tmp`, `/run`
+- [x] **Read-only rootfs compatible**: only `/home/waas_user`, `/tmp`, `/run`
       are written. CI smoke-runs every image with `--read-only
       --cap-drop ALL --security-opt no-new-privileges` — a regression
       fails the pipeline.
@@ -76,7 +76,7 @@ is enforced, so the list is verifiable, not aspirational.
 Some workspaces are development environments whose users legitimately
 need `sudo apt install` in-session. That can never be a runtime flag —
 sudo is a setuid binary (stripped from standard images), `apt` writes
-outside `/home/user|/tmp|/run`, and `no-new-privileges` kills setuid
+outside `/home/waas_user|/tmp|/run`, and `no-new-privileges` kills setuid
 transitions — so it is a **build-time variant with a distinct tag**
 (`<name>-dev`, e.g. `ubuntu-devtools-dev`), a documented reduced
 profile, not a regression of this checklist.
@@ -87,7 +87,7 @@ Items **lifted** on `-dev` images, and only these:
   test asserts the set is exactly that — anything else fails CI.
 - Read-only rootfs: the matching WorkspaceTemplate must set
   `readOnlyRootFilesystem: false` (in-session installs land in the
-  container layer and are **lost on pod restart**; only `/home/user`
+  container layer and are **lost on pod restart**; only `/home/waas_user`
   survives).
 - `allowPrivilegeEscalation: true` (without it sudo stays dead).
 - `capabilities.drop: [ALL]` → keep the **runtime default** capability

@@ -1,10 +1,13 @@
 # WorkspaceTemplate consuming a waas-images build — the full integration
 # contract in one example.
 #
-# Credentials: prefer `protocols[].credentialsSecretRef` + env valueFrom
-# (see workspacetemplate-dev-ssh.yaml for the full pattern) — no secret
-# ever lands in the CR. The literal VNC_PW below is the legacy fallback,
-# kept only to show the minimal form.
+# Credentials: none needed. When a template exposes vnc/rdp without an
+# explicit password source, the platform generates a random per-workspace
+# password, injects it into the pod (VNC_PW via secretKeyRef) and
+# resolves it server-side at connect time — zero template configuration.
+# For a persistent/known secret instead, set
+# `protocols[].credentialsSecretRef` + env `valueFrom.secretKeyRef` (see
+# workspacetemplate-dev-ssh.yaml for the full pattern).
 apiVersion: waas.xorhub.io/v1alpha1
 kind: WorkspaceTemplate
 metadata:
@@ -24,7 +27,5 @@ spec:
     requests: { cpu: 500m, memory: 1Gi }
     limits: { cpu: "2", memory: 4Gi }
   env:
-    - name: VNC_PW
-      value: "change-me-via-gitops-secret"
     - name: VNC_RESOLUTION
       value: "1920x1080"

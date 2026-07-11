@@ -53,7 +53,7 @@ AuthorizedKeysFile ${AUTH_KEYS}
 # The runtime dir is tmpfs with entrypoint-owned perms; the default
 # StrictModes walk would reject the non-standard location.
 StrictModes no
-AllowUsers ${WAAS_USER:-user}
+AllowUsers ${WAAS_USER:-waas_user}
 X11Forwarding no
 PrintMotd no
 ClientAliveInterval 60

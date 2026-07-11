@@ -36,9 +36,11 @@ ARG OS_BASE_IMAGE=ubuntu:24.04
 # hadolint ignore=DL3006
 FROM ${OS_BASE_IMAGE}
 
-# Fixed, overridable identity. /home/user is the contract with the
-# operator: the Workspace home PVC is mounted there.
-ARG WAAS_USER=user
+# Fixed, overridable identity. The home path follows WAAS_USER
+# (/home/waas_user by default) and must match the operator's
+# DefaultHomeMountPath (waas-fable), where the Workspace home PVC is
+# mounted — the two repos change this value together.
+ARG WAAS_USER=waas_user
 ARG WAAS_UID=1000
 ARG WAAS_GID=1000
 # Bake xrdp into the image (1) or ship VNC-only (0). Runtime toggles
@@ -96,9 +98,9 @@ RUN apt-get update && \
 # user squatting UID 1000 — remove it first.
 RUN if id ubuntu >/dev/null 2>&1; then userdel -r ubuntu; fi && \
     groupadd -g "${WAAS_GID}" "${WAAS_USER}" && \
-    # Home is /home/user regardless of the user name: it is the mount
-    # path the operator uses for the persistent home PVC.
-    useradd -l -m -u "${WAAS_UID}" -g "${WAAS_GID}" -d /home/user -s /bin/bash "${WAAS_USER}"
+    # Home is /home/waas_user: the mount path the operator uses for the
+    # persistent home PVC (DefaultHomeMountPath in waas-fable).
+    useradd -l -m -u "${WAAS_UID}" -g "${WAAS_GID}" -d /home/waas_user -s /bin/bash "${WAAS_USER}"
 
 # Drop every setuid/setgid bit: nothing we run needs privilege escalation,
 # and this neutralises su/passwd/chfn/... even if a shell is reached.
@@ -116,7 +118,7 @@ RUN chmod 0755 /usr/local/bin/waas-entrypoint /usr/local/bin/waas-session /usr/l
 EXPOSE 5901 3389 4713
 
 ENV WAAS_USER=${WAAS_USER} \
-    HOME=/home/user \
+    HOME=/home/waas_user \
     DISPLAY=:1 \
     WAAS_RUNTIME_DIR=/tmp/waas \
     WAAS_VNC_ENABLED=1 \
@@ -131,7 +133,7 @@ ENV WAAS_USER=${WAAS_USER} \
     WAAS_STARTUP=
 
 USER ${WAAS_UID}:${WAAS_GID}
-WORKDIR /home/user
+WORKDIR /home/waas_user
 
 # tini is PID 1 (signal forwarding + zombie reaping); the entrypoint
 # renders runtime config then execs supervisord in the foreground.

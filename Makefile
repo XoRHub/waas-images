@@ -72,7 +72,7 @@ build: recipes
 run: build
 	docker run --rm -it \
 		--read-only --cap-drop ALL --security-opt no-new-privileges \
-		--tmpfs /tmp --tmpfs /run --tmpfs /home/user:mode=1777 \
+		--tmpfs /tmp --tmpfs /run --tmpfs /home/waas_user:mode=1777 \
 		-p 15901:5901 -p 13389:3389 \
 		-e VNC_PW=devpassword -e WAAS_RDP_ENABLED=$(if $(findstring rdp,$(IMAGE)),1,0) \
 		$(TAG)

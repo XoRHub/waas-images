@@ -3,14 +3,14 @@
 #
 # Everything mutable lives under $WAAS_RUNTIME_DIR (default /tmp/waas) so
 # the image runs with a read-only rootfs given three writable mounts:
-#   /home/user  (PVC, mounted by the operator)
-#   /tmp        (emptyDir/tmpfs)
-#   /run        (emptyDir/tmpfs — only needed when RDP is enabled)
+#   /home/waas_user  (PVC, mounted by the operator)
+#   /tmp             (emptyDir/tmpfs)
+#   /run             (emptyDir/tmpfs — only needed when RDP is enabled)
 #
 # Secrets are runtime-only: the desktop password arrives via env
-# (VNC_PW / VNC_PASSWORD / RDP_PASSWORD), is written 0600 into the runtime
-# dir in VNC-hashed form, and is scrubbed from the environment before any
-# service starts.
+# (VNC_PW, or the RDP_PASSWORD fallback — VNC_PW wins when both are set),
+# is written 0600 into the runtime dir in VNC-hashed form, and is
+# scrubbed from the environment before any service starts.
 set -euo pipefail
 
 log()  { printf 'waas-entrypoint: %s\n' "$*" >&2; }
@@ -30,7 +30,7 @@ fi
 # Single session password shared by both protocols (the xrdp libvnc bridge
 # forwards the RDP password as the VNC password, so they cannot differ).
 # A password is ALWAYS required — no image ever boots with an open session.
-PASSWORD="${VNC_PW:-${VNC_PASSWORD:-${RDP_PASSWORD:-}}}"
+PASSWORD="${VNC_PW:-${RDP_PASSWORD:-}}"
 [[ -n "${PASSWORD}" ]] || fail "no desktop password: set VNC_PW (or RDP_PASSWORD) from a Kubernetes Secret"
 printf '%s\n' "${PASSWORD}" | vncpasswd -f > "${RUNDIR}/vnc.passwd"
 chmod 0600 "${RUNDIR}/vnc.passwd"
@@ -51,8 +51,8 @@ fi
 
 # Scrub: children of supervisord must not inherit the cleartext secret
 # (visible in /proc/*/environ to anything running in the session).
-unset PASSWORD VNC_PW VNC_PASSWORD RDP_PASSWORD
-export VNC_PW='' VNC_PASSWORD='' RDP_PASSWORD=''
+unset PASSWORD VNC_PW RDP_PASSWORD
+export VNC_PW='' RDP_PASSWORD=''
 
 # -------------------------------------------------------------- X authority
 # Proper cookie auth for the X display instead of Xvnc -ac.

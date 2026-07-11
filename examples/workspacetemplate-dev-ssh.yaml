@@ -3,7 +3,7 @@
 # secrets-clean credential flow end to end:
 #
 #   ┌ Secret dev-ssh-credentials (ESO/Vault-provided) ────────────────┐
-#   │ username:        user                                           │
+#   │ username:        waas_user                                      │
 #   │ private-key:     <openssh private key>   → guacd (connect side) │
 #   │ authorized-keys: <matching public key>   → pod (accept side)    │
 #   │ password:        <desktop password>      → pod VNC + guacd vnc  │

@@ -112,15 +112,29 @@ log "smoke test"
 SMOKE_IMAGE="${IMAGE}:${ARCH_TAG}" sh ci/smoke_test.sh
 
 # ----------------------------------------------------------------- scan
+# Per-image exceptions: a "${IMG_CONTEXT}/.trivyignore", if present, is
+# mounted in and passed via --ignorefile. Each entry must be a real,
+# investigated false positive (documented inline in the file) — this is
+# not a place to silence real findings.
+TRIVY_MOUNT_FLAGS=""
+TRIVY_IGNOREFILE_FLAG=""
+if [ -f "${IMG_CONTEXT}/.trivyignore" ]; then
+    TRIVY_MOUNT_FLAGS="-v $(pwd)/${IMG_CONTEXT}/.trivyignore:/.trivyignore:ro"
+    TRIVY_IGNOREFILE_FLAG="--ignorefile /.trivyignore"
+fi
+
 log "trivy scan (gate: ${TRIVY_SEVERITY:-HIGH,CRITICAL})"
+# shellcheck disable=SC2086
 docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v trivy-cache:/root/.cache/trivy \
+    ${TRIVY_MOUNT_FLAGS} \
     aquasec/trivy:0.63.0 image \
     --severity "${TRIVY_SEVERITY:-HIGH,CRITICAL}" \
     --ignore-unfixed="${TRIVY_IGNORE_UNFIXED:-true}" \
     --exit-code "${TRIVY_EXIT_CODE:-1}" \
     --scanners vuln,secret \
+    ${TRIVY_IGNOREFILE_FLAG} \
     "${IMAGE}:${ARCH_TAG}"
 
 # ----------------------------------------------------------------- push

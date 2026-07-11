@@ -13,6 +13,7 @@ description: >
   boundary (inner Chrome sandbox disabled, Firefox-gap precedent).
 version: "1.0.0"
 from: ubuntu-xfce
+icon: google-chrome
 
 # Google publishes no arm64 Chrome deb — amd64 only, like the catalog's
 # firefox entry until proven otherwise.

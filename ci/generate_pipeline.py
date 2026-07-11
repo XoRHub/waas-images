@@ -99,6 +99,10 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 "description": " ".join(str(m.get("description", "")).split()),
                 "profile": profile,
                 "version": str(m["version"]),
+                # Catalog-only key (ci/generate_catalog.py): dashboard-icons
+                # slug, never baked into the image. Root + per-variant
+                # override, like smoke:/buildArgs:.
+                "icon": v.get("icon", m.get("icon", "")),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
                 "build_args": build_args,

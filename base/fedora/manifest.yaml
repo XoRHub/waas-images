@@ -12,6 +12,7 @@ description: >
   VNC and optional xrdp bridge, PulseAudio for guacd's VNC audio
   stream, non-root, read-only-rootfs friendly.
 version: "1.0.0"
+icon: fedora
 
 variants:
   - name: fedora-base-vnc

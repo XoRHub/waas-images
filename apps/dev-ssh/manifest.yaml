@@ -6,6 +6,7 @@ description: >
   guacd's native ssh protocol. VNC stays available for graphical needs.
 version: "1.0.2"
 from: ubuntu-base-vnc
+icon: terminal
 
 variants:
   - name: dev-ssh

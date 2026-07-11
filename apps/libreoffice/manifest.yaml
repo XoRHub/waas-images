@@ -8,6 +8,7 @@ description: >
   repo), auto-started via XDG autostart.
 version: "1.0.0"
 from: ubuntu-xfce
+icon: libreoffice
 
 recipe:
   apt: [libreoffice, libreoffice-gtk3]

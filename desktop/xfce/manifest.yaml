@@ -3,6 +3,8 @@ layer: desktop
 description: XFCE desktop, VNC + RDP, derived from the apt base-rdp image.
 version: "1.1.0"
 from: ubuntu-base-rdp
+# No "xfce" slug in dashboard-icons — the OS icon is the best fit.
+icon: ubuntu-linux
 
 variants:
   - name: ubuntu-xfce
@@ -17,6 +19,7 @@ variants:
   - name: debian-xfce
     os: debian-13
     from: debian-base-rdp
+    icon: debian-linux
     smoke:
       vnc: true
       rdp: true

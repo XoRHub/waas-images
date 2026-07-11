@@ -12,6 +12,9 @@ description: >
   fallback), VNC and optional xrdp bridge, PulseAudio for guacd's VNC
   audio stream, non-root, read-only-rootfs friendly.
 version: "1.4.0"
+# Picker icon (dashboard-icons slug; the plain "ubuntu"/"debian" slugs
+# do not exist upstream — verified on the CDN, see README).
+icon: ubuntu-linux
 
 variants:
   # VNC-only: smallest image, the recommended default for Linux templates.
@@ -42,6 +45,7 @@ variants:
   # conf keys rendered by waas-entrypoint are covered by the RDP smoke.
   - name: debian-base-vnc
     os: debian-13
+    icon: debian-linux
     buildArgs:
       INSTALL_RDP: "0"
     smoke:
@@ -51,6 +55,7 @@ variants:
 
   - name: debian-base-rdp
     os: debian-13
+    icon: debian-linux
     buildArgs:
       INSTALL_RDP: "1"
     smoke:

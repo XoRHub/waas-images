@@ -4,6 +4,7 @@ os: fedora-43
 description: XFCE desktop on Fedora, VNC + RDP, derived from fedora-base-rdp.
 version: "1.0.0"
 from: fedora-base-rdp
+icon: fedora
 
 variants:
   - name: fedora-xfce

@@ -20,7 +20,7 @@ ARG FIREFOX_VERSION=*
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget gpg && \
     install -d -m 0755 /etc/apt/keyrings && \
-    wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg \
+    wget --timeout=20 --tries=3 -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg \
         | gpg --dearmor -o /etc/apt/keyrings/packages.mozilla.org.gpg && \
     # --with-colons: machine-readable output, fingerprint unspaced.
     gpg --show-keys --with-colons /etc/apt/keyrings/packages.mozilla.org.gpg \

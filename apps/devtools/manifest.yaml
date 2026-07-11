@@ -7,7 +7,7 @@ description: >
   XFCE work desktop with VS Code (Microsoft APT repo, fingerprint
   pinned) and the dev-ssh toolchain (git, build-essential, python3,
   jq, tmux, ...). No autostart: VS Code sits in the XFCE menu.
-version: "1.0.0"
+version: "1.1.0"
 from: ubuntu-xfce
 
 # amd64 first: that is the published catalog contract. Microsoft ships

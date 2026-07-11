@@ -18,15 +18,30 @@ FROM ${BASE_IMAGE}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 USER 0
 
+# Vendored fallback: packages.microsoft.com (Azure Front Door) is
+# unreachable from some runner fleets even with -4 (IPv4 route, not just
+# the IPv6 one, ends up blackholed) — unlike packages.mozilla.org /
+# dl.google.com, which -4 alone fixed. Rather than fail the build on a
+# transient network path to one vendor, fetch live and fall back to a
+# copy of the same key checked into the repo, verified below against
+# the fingerprint either way. Refresh this file if Microsoft ever
+# rotates the key (build breaks loudly on a fingerprint mismatch).
+COPY microsoft-signing-key.asc /tmp/microsoft-signing-key.vendored.asc
+
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget gpg && \
     install -d -m 0755 /etc/apt/keyrings && \
-    # -4: packages.microsoft.com resolves an AAAA (Azure Front Door); this
-    # fleet's IPv6 route there is blackholed, so wget hangs on the IPv6
-    # address and --timeout/--tries alone still yields an empty key.
-    wget -4 --timeout=20 --tries=3 -qO- https://packages.microsoft.com/keys/microsoft.asc \
-        | gpg --dearmor -o /etc/apt/keyrings/packages.microsoft.com.gpg && \
+    ( wget -4 --timeout=20 --tries=3 -qO- https://packages.microsoft.com/keys/microsoft.asc \
+        > /tmp/microsoft-signing-key.fetched.asc || true ) && \
+    if [ -s /tmp/microsoft-signing-key.fetched.asc ]; then \
+        cp /tmp/microsoft-signing-key.fetched.asc /tmp/microsoft-signing-key.asc; \
+    else \
+        echo "WARN: live fetch of packages.microsoft.com signing key failed, falling back to vendored copy" >&2; \
+        cp /tmp/microsoft-signing-key.vendored.asc /tmp/microsoft-signing-key.asc; \
+    fi && \
+    gpg --dearmor -o /etc/apt/keyrings/packages.microsoft.com.gpg /tmp/microsoft-signing-key.asc && \
+    rm -f /tmp/microsoft-signing-key.fetched.asc /tmp/microsoft-signing-key.vendored.asc /tmp/microsoft-signing-key.asc && \
     # --with-colons: machine-readable output, fingerprint unspaced.
     # Fingerprint read from the live key on 2026-07-11.
     gpg --show-keys --with-colons /etc/apt/keyrings/packages.microsoft.com.gpg \

@@ -164,6 +164,72 @@ is maintained by hand; these keys are its future source of truth).
 Verify: `docker buildx imagetools inspect <ref> --raw` (index) or
 `docker inspect <arch-ref>` (config labels).
 
+Manifests additionally carry one catalog-only key that is **not** baked
+into the image:
+
+- `icon:` (optional; manifest root or per-variant override, same
+  root+override convention as `smoke:`/`buildArgs:`) — a
+  [dashboard-icons](https://github.com/homarr-labs/dashboard-icons)
+  slug shown next to the image in the WaaS workspace-creation picker
+  (consumed by `ci/generate_catalog.py`, see § Image catalogs). Verify
+  `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/<slug>.svg`
+  answers 200 before committing: an invalid slug fails nothing anywhere —
+  WaaS silently falls back to a generic OS icon, same as when the key is
+  absent, so add icons progressively. Slugs verified on 2026-07-11:
+  `ubuntu-linux`, `debian-linux`, `fedora`, `linux`, `firefox`,
+  `google-chrome`, `libreoffice`, `visual-studio-code`, `terminal`
+  (the plain `ubuntu`, `debian`, `xfce` and `gnome-terminal` slugs do
+  **not** exist).
+
+## Image catalogs (WaaS picker)
+
+WaaS (`waas-fable`) lets a user create a workspace straight from an
+admin-approved registry image, without a per-image WorkspaceTemplate.
+Its `WorkspaceImageReconciler` periodically fetches catalog files —
+`{image, os, app, version, icon, displayName}` lists under
+`apiVersion: waas.xorhub.io/catalog/v1` (full contract:
+`docs/studies/prompt-feature13-catalog-publishing.md`) — and this repo
+publishes two of them to its GitLab **Generic Package Registry**:
+
+| Catalog | Generator | When | URL (`$CI_API_V4_URL/projects/<id>` prefix) |
+|---|---|---|---|
+| `catalog-waas-images.yaml` — the images this repo builds | `ci/generate_catalog.py` (reuses `generate_pipeline.py`'s manifest discovery — the catalog cannot drift from the build matrix) | every default-branch pipeline, `catalog` stage, after `build` | `/packages/generic/waas-catalog/latest/catalog-waas-images.yaml` |
+| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script only resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable) | scheduled pipelines only | `/packages/generic/kasm-catalog/latest/catalog-kasmweb.yaml` |
+
+Design notes:
+
+- Catalog entries reference `<name>:<version>` with **no digest**: the
+  `<version>` tags are immutable by CI construction (§ Build matrix &
+  tagging), so the ref is already as stable as a digest.
+- The `os:` field is always `linux` (workspace OS family, what guacd
+  cares about) — not the build distro that `io.xorhub.waas.os` carries.
+- **Generic Package Registry, not a GitLab Release**: this repo has no
+  repo-global version or git tag (each image versions independently via
+  its manifest), so a Release would need an artificial tag just to hold
+  the asset. The package URL is stable, needs no tag, and re-uploading
+  to the fixed `latest` version segment on every run is exactly the
+  "consumer always wants the newest catalog" semantic. `-g<sha>`-tagged
+  branch builds never publish (same guard as the immutable tags).
+- Both publish jobs are `allow_failure` / best-effort: the catalogs are
+  secondary deliverables and must never block image publication.
+
+**One-time manual setup after merging** (GitLab UI, not in YAML):
+
+1. Create the scheduled pipeline: Settings → CI/CD → Pipeline
+   schedules → target branch `main`. Recommended cadence: **daily,
+   `0 6 * * *` UTC** — Kasm cuts releases every few months, so daily
+   detection is generous while staying far from Docker Hub's anonymous
+   rate limits; anything tighter buys nothing.
+2. Make the catalog URLs fetchable by `waas-fable`'s anonymous HTTP
+   GET. The project is currently **private** (the API returns 404
+   anonymously, checked 2026-07-11), so out of the box the URLs above
+   require auth. Either flip the project public, or keep it private and
+   enable Settings → General → Visibility → **Package registry** →
+   "Allow anyone to pull from Package Registry", or give `waas-fable` a
+   read-only deploy token. Until one of these is done the reconciler's
+   fetch will 404 silently on its side — verify with an unauthenticated
+   `curl` after setup.
+
 ## Adding an app image
 
 **Declarative shortcut (`recipe:`)** — when the app is "a list of apt

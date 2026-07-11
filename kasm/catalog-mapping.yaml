@@ -1,0 +1,28 @@
+# Hand-curated mapping of the upstream docker.io/kasmweb/* images WaaS
+# consumes (referenced today in waas-fable gitops/governance/images.yaml).
+# NOT images this repo builds: kasm/ sits deliberately outside the
+# base/desktop/apps build layers and generate_pipeline.py never reads it.
+#
+# ci/generate_kasm_catalog.py (scheduled pipeline, README § Image
+# catalogs) resolves the newest X.Y.Z release tag per image from Docker
+# Hub and publishes catalog-kasmweb.yaml; it NEVER writes back here.
+# knownVersion is only the offline fallback when Docker Hub is
+# unreachable — refresh it occasionally, it does not need to track
+# every Kasm release.
+#
+# icon: dashboard-icons slug (github.com/homarr-labs/dashboard-icons).
+# Verify https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/<slug>.svg
+# answers 200 before committing — an invalid slug fails nothing here,
+# WaaS just falls back to a generic OS icon silently.
+images:
+  - name: terminal            # docker.io/kasmweb/terminal
+    app: terminal
+    icon: terminal            # no gnome-terminal slug upstream; terminal exists
+    displayName: "Kasm Terminal"
+    knownVersion: "1.19.0"
+
+  - name: firefox
+    app: firefox
+    icon: firefox
+    displayName: "Kasm Firefox"
+    knownVersion: "1.19.0"

@@ -17,6 +17,13 @@
       "labels": [
         "os-bump"
       ]
+    },
+    {
+      "description": "actions/* bumps (checkout, etc., used across build.yml and catalog-kasmweb.yml) land in one PR instead of one per action, so they fire a single CI run instead of one per dependency.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "build.yml github-actions"
     }
   ],
   "customManagers": [

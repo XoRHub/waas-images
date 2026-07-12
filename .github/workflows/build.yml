@@ -37,7 +37,6 @@ permissions:
 env:
   WAAS_IMAGES_BUILD_STRATEGY: ${{ vars.WAAS_IMAGES_BUILD_STRATEGY || 'native' }}
   CI_REGISTRY: ghcr.io
-  CI_REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
   CI_REGISTRY_USER: ${{ github.actor }}
   CI_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
   CI_COMMIT_SHA: ${{ github.sha }}
@@ -75,6 +74,7 @@ jobs:
       merge1: ${{ steps.matrices.outputs.merge1 }}
       merge2: ${{ steps.matrices.outputs.merge2 }}
       short_sha: ${{ steps.matrices.outputs.short_sha }}
+      registry_image: ${{ steps.matrices.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate matrices
@@ -86,6 +86,10 @@ jobs:
             echo "${key}=$(jq -c ".${key}" github-matrices.json)" >> "$GITHUB_OUTPUT"
           done
           echo "short_sha=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          # OCI repository names must be lowercase; github.repository
+          # preserves the owner/repo casing (XoRHub/waas-images), which
+          # `docker build -t` rejects.
+          echo "registry_image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
   layer-0:
     needs: [lint, setup]
@@ -97,6 +101,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -133,6 +138,7 @@ jobs:
         include: ${{ fromJSON(needs.setup.outputs.merge0) }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       COSIGN_KEYLESS: "1"
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -157,6 +163,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -193,6 +200,7 @@ jobs:
         include: ${{ fromJSON(needs.setup.outputs.merge1) }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       COSIGN_KEYLESS: "1"
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -217,6 +225,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -253,6 +262,7 @@ jobs:
         include: ${{ fromJSON(needs.setup.outputs.merge2) }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       COSIGN_KEYLESS: "1"
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -290,6 +300,7 @@ jobs:
       contents: write   # create the rolling release + upload its asset
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate catalog-waas-images.yaml

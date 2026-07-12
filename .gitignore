@@ -1,3 +1,4 @@
+.claude/
 build-pipeline.yml
 Dockerfile.generated
 __pycache__/

@@ -80,7 +80,7 @@ if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
         # Registry auth via flags: the job's ~/.docker is not visible to a
         # container started on the dind daemon, so mounting it cannot work.
         docker run --rm -e COSIGN_PRIVATE_KEY -e COSIGN_PASSWORD \
-            ghcr.io/sigstore/cosign/cosign:v2.5.0 sign --yes \
+            ghcr.io/sigstore/cosign/cosign:v2.6.3 sign --yes \
             --key env://COSIGN_PRIVATE_KEY \
             --registry-username "${CI_REGISTRY_USER}" \
             --registry-password "${CI_REGISTRY_PASSWORD}" \
@@ -90,7 +90,7 @@ if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
         log "cosign sign (keyless OIDC)"
         docker run --rm \
             -e ACTIONS_ID_TOKEN_REQUEST_TOKEN -e ACTIONS_ID_TOKEN_REQUEST_URL \
-            ghcr.io/sigstore/cosign/cosign:v2.5.0 sign --yes \
+            ghcr.io/sigstore/cosign/cosign:v2.6.3 sign --yes \
             --registry-username "${CI_REGISTRY_USER}" \
             --registry-password "${CI_REGISTRY_PASSWORD}" \
             -a revision="${CI_COMMIT_SHA}" \

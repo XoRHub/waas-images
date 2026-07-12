@@ -23,8 +23,7 @@ manifest/recipe instead and regenerate:
 
 | Generated file | Regenerate with |
 |---|---|
-| `build-pipeline.yml` | `python3 ci/generate_pipeline.py` (default GitLab emitter) |
-| `github-matrices.json` | `python3 ci/generate_pipeline.py --emitter github` |
+| `github-matrices.json` | `python3 ci/generate_pipeline.py` |
 | `*/Dockerfile.generated` | `make recipes` (only for directories with a `recipe:` block) |
 | `catalog-waas-images.yaml`, `catalog-kasmweb.yaml` | `ci/generate_catalog.py` / `ci/generate_kasm_catalog.py` |
 
@@ -80,13 +79,12 @@ Before declaring a change to `ci/generate_pipeline.py`,
 they assert the exact YAML/JSON shape downstream consumers
 (`waas-fable`'s reconciler, the GitHub Actions skeleton) depend on.
 
-## Two forges, one behavior
+## GitHub is the forge
 
-GitHub (`.github/workflows/build.yml`, canonical) and GitLab
-(`.gitlab-ci.yml` → generated child pipeline) must stay behaviorally
-identical — both dispatch the same `ci/*.sh` scripts, only the YAML
-differs. If you change build/smoke/scan logic, check both emitters in
-`ci/generate_pipeline.py` and both workflow files, not just one.
+This project is open source on GitHub (`.github/workflows/build.yml`),
+its sole canonical forge — GitLab is no longer an active forge for this
+project. All heavy lifting lives in the portable `ci/*.sh` scripts;
+`ci/generate_pipeline.py` only builds the GitHub Actions matrices.
 
 ## Docs conventions
 

@@ -116,18 +116,19 @@ and scan run on BOTH arches. Fallback: the CI variable
 fleet under emulation (arm fleet down) — same jobs, same gates, just
 slower.
 
-**Two forges, same scripts, two registries** — `ci/*.sh` is the
-portable layer; only the YAML dispatch differs:
+**GitHub is the sole forge** — this project is open source on GitHub,
+its one canonical and publicly accessible forge (GitLab is no longer
+an active forge for this project). `ci/*.sh` is the portable layer
+dispatched by `.github/workflows/build.yml`:
 
-| | GitHub (canonical) | GitLab |
-|---|---|---|
-| Workflow | `.github/workflows/build.yml` (static skeleton + `--emitter github` matrices) | `.gitlab-ci.yml` → generated child pipeline |
-| Runners | `ubuntu-24.04` / `ubuntu-24.04-arm` hosted | `amd` / `arm` self-hosted fleets |
-| Registry | `ghcr.io/<owner>/waas-images/<image>` | GitLab project registry |
-| Signing | cosign **keyless OIDC** (`COSIGN_KEYLESS=1`, verify the certificate identity) | cosign **key** (`COSIGN_PRIVATE_KEY`, verify the public key) |
+| | GitHub |
+|---|---|
+| Workflow | `.github/workflows/build.yml` (static skeleton + generated matrices) |
+| Runners | `ubuntu-24.04` / `ubuntu-24.04-arm` hosted |
+| Registry | `ghcr.io/<owner>/waas-images/<image>` |
+| Signing | cosign **keyless OIDC** (`COSIGN_KEYLESS=1`, verify the certificate identity) |
 
-A verifying policy-controller must accept both signature modes for as
-long as the two forges publish in parallel.
+A verifying policy-controller must accept this signature mode.
 
 The smoke test is also the hardening gate: every image must boot with
 `--read-only --cap-drop ALL --security-opt no-new-privileges` and answer
@@ -153,7 +154,7 @@ is maintained by hand; these keys are its future source of truth).
 | `org.opencontainers.image.version` | manifest `version:` |
 | `org.opencontainers.image.revision` | full git commit of the build |
 | `org.opencontainers.image.created` | build timestamp (UTC, RFC 3339) |
-| `org.opencontainers.image.source` | URL of the forge that ran the build (`CI_PROJECT_URL` on GitLab) |
+| `org.opencontainers.image.source` | URL of the forge that ran the build (`CI_PROJECT_URL`, exported by the GitHub workflow) |
 | `org.opencontainers.image.licenses` | `Apache-2.0` |
 | `org.opencontainers.image.vendor` | `XorHub` |
 | `io.xorhub.waas.os` | resolved `os:` key (`ubuntu-24.04`, `debian-13`, `fedora-43`) |
@@ -188,13 +189,19 @@ admin-approved registry image, without a per-image WorkspaceTemplate.
 Its `WorkspaceImageReconciler` periodically fetches catalog files —
 `{image, os, app, version, icon, displayName}` lists under
 `apiVersion: waas.xorhub.io/catalog/v1` (full contract: TODO — link
-published docs once available) — and this repo publishes two of them
-to its GitLab **Generic Package Registry**:
+published docs once available) — published as assets on this repo's
+rolling `catalog` GitHub Release (fixed tag, assets overwritten in
+place with `--clobber`, never pinned):
 
-| Catalog | Generator | When | URL (`$CI_API_V4_URL/projects/<id>` prefix) |
-|---|---|---|---|
-| `catalog-waas-images.yaml` — the images this repo builds | `ci/generate_catalog.py` (reuses `generate_pipeline.py`'s manifest discovery — the catalog cannot drift from the build matrix) | every default-branch pipeline, `catalog` stage, after `build` | `/packages/generic/waas-catalog/latest/catalog-waas-images.yaml` |
-| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script only resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable) | scheduled pipelines only | `/packages/generic/kasm-catalog/latest/catalog-kasmweb.yaml` |
+| Catalog | Generator | When |
+|---|---|---|
+| `catalog-waas-images.yaml` — the images this repo builds | `ci/generate_catalog.py` (reuses `generate_pipeline.py`'s manifest discovery — the catalog cannot drift from the build matrix) | `build.yml`'s `catalog` job, every default-branch run, after `build`/`merge` |
+| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script only resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable) | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
+
+Both assets are fetched by `waas-fable` from the `catalog` release's
+download URL (`.../releases/download/catalog/<file>`) — a public repo
+needs no auth for this; a private one would need a token with
+`contents:read`.
 
 Design notes:
 
@@ -203,32 +210,15 @@ Design notes:
   tagging), so the ref is already as stable as a digest.
 - The `os:` field is always `linux` (workspace OS family, what guacd
   cares about) — not the build distro that `io.xorhub.waas.os` carries.
-- **Generic Package Registry, not a GitLab Release**: this repo has no
+- **Rolling release, not versioned releases**: this repo has no
   repo-global version or git tag (each image versions independently via
-  its manifest), so a Release would need an artificial tag just to hold
-  the asset. The package URL is stable, needs no tag, and re-uploading
-  to the fixed `latest` version segment on every run is exactly the
+  its manifest), so per-version releases would need an artificial tag
+  just to hold the asset. The `catalog` release's fixed tag needs no
+  bump, and re-uploading with `--clobber` on every run is exactly the
   "consumer always wants the newest catalog" semantic. `-g<sha>`-tagged
   branch builds never publish (same guard as the immutable tags).
-- Both publish jobs are `allow_failure` / best-effort: the catalogs are
-  secondary deliverables and must never block image publication.
-
-**One-time manual setup after merging** (GitLab UI, not in YAML):
-
-1. Create the scheduled pipeline: Settings → CI/CD → Pipeline
-   schedules → target branch `main`. Recommended cadence: **daily,
-   `0 6 * * *` UTC** — Kasm cuts releases every few months, so daily
-   detection is generous while staying far from Docker Hub's anonymous
-   rate limits; anything tighter buys nothing.
-2. Make the catalog URLs fetchable by `waas-fable`'s anonymous HTTP
-   GET. The project is currently **private** (the API returns 404
-   anonymously, checked 2026-07-11), so out of the box the URLs above
-   require auth. Either flip the project public, or keep it private and
-   enable Settings → General → Visibility → **Package registry** →
-   "Allow anyone to pull from Package Registry", or give `waas-fable` a
-   read-only deploy token. Until one of these is done the reconciler's
-   fetch will 404 silently on its side — verify with an unauthenticated
-   `curl` after setup.
+- Both publish jobs are best-effort (`continue-on-error`): the catalogs
+  are secondary deliverables and must never block image publication.
 
 ## Adding an app image
 

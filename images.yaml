@@ -4,7 +4,7 @@
 # this file.
 #
 # ci/generate_pipeline.py merges this with the discovered manifests and
-# emits the GitLab child pipeline (topologically ordered on `from`).
+# emits the GitHub Actions build matrices (topologically ordered on `from`).
 
 # Base OS matrix. Manifests (or individual variants) reference an entry
 # via `os:`; the buildArgs feed the parameterized FROM of the apt base

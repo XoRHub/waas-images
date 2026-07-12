@@ -66,13 +66,13 @@ log "published ${IMAGE}@${DIGEST}"
 # ----------------------------------------------------------------- sign
 # Two modes, both default-branch only (branch tags are throwaway):
 #   keyed   — COSIGN_PRIVATE_KEY (+ COSIGN_PASSWORD) as masked CI
-#             variables; the GitLab setup.
+#             variables.
 #   keyless — COSIGN_KEYLESS=1 (set by the GitHub workflow, which also
 #             declares permissions id-token: write): OIDC identity
 #             certificate via the ambient ACTIONS_ID_TOKEN_REQUEST_*
 #             env. A verifying policy-controller must check the
-#             certificate identity on GitHub-signed images and the
-#             public key on GitLab-signed ones while both coexist.
+#             certificate identity on keyless-signed images and the
+#             public key on keyed ones.
 # Skipped when neither is configured.
 if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
     if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then

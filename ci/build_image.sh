@@ -71,9 +71,9 @@ fi
 # config labels do not propagate to). Applied here, NOT per Dockerfile,
 # so hand-written, recipe-generated and future images all carry them.
 # `source` reflects the forge that actually ran this build
-# (CI_PROJECT_URL on GitLab, exported by the workflow on GitHub):
-# revision/created describe THIS build, so pointing `source` at a forge
-# that did not produce the artifact would mislead provenance tooling.
+# (CI_PROJECT_URL, exported by the GitHub workflow): revision/created
+# describe THIS build, so pointing `source` at a forge that did not
+# produce the artifact would mislead provenance tooling.
 CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # One flag set for both invocations below: the artifact pushed after the

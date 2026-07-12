@@ -127,17 +127,16 @@ Conventional commits, scoped to the area touched:
 (`ci`, `catalog`, `identity`, `firefox`, `devtools`, `schema`, …)
 before inventing a new one.
 
-## Two forges
+## GitHub is the forge
 
-GitHub (`.github/workflows/build.yml`) is the canonical forge; GitLab
-(`.gitlab-ci.yml`, generated child pipeline) mirrors it. Both dispatch
-the same portable `ci/*.sh` scripts — if a fix belongs in build/smoke/scan
-logic, make sure it works from both entry points rather than patching
-one workflow's YAML directly.
+This project is open source on GitHub, its sole canonical and publicly
+accessible forge — GitLab is no longer an active forge for this
+project. `.github/workflows/build.yml` dispatches the same portable
+`ci/*.sh` scripts that hold all the build/smoke/scan logic.
 
 ## Dependency updates
 
 Renovate (`renovate.json`) manages base image digests, CI tool pins
-(binfmt/trivy/cosign/buildkit), and GitLab CI manager files. OS base
-bumps (Ubuntu/Debian/Fedora) are grouped and labeled `os-bump` and never
-automerged — they're a deliberate version decision, review them as such.
+(binfmt/trivy/cosign/buildkit). OS base bumps (Ubuntu/Debian/Fedora) are
+grouped and labeled `os-bump` and never automerged — they're a
+deliberate version decision, review them as such.

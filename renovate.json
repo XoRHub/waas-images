@@ -5,11 +5,6 @@
     "config:recommended",
     "docker:pinDigests"
   ],
-  "gitlabci": {
-    "managerFilePatterns": [
-      "/\\.gitlab-ci\\.ya?ml$/"
-    ]
-  },
   "packageRules": [
     {
       "description": "OS base bumps (Ubuntu LTS / Debian stable / Fedora) are a deliberate decision: group and label, never automerge.",

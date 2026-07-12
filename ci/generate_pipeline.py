@@ -9,13 +9,9 @@ variant builds one stage later), and each arch chain is independent:
 `ARG BASE_IMAGE` points at the parent's SAME-ARCH tag pushed earlier
 in the same pipeline.
 
-Two emitters over the same discovery/toposort/validation
-(--emitter, default gitlab):
-  gitlab  build-pipeline.yml — full child pipeline consumed by the
-          parent's trigger job (runner tags amd/arm).
-  github  github-matrices.json — per-layer-depth build/merge matrices
-          consumed by the committed .github/workflows/build.yml
-          (fromJSON); the workflow skeleton is static.
+Emits github-matrices.json — per-layer-depth build/merge matrices
+consumed by the committed .github/workflows/build.yml (fromJSON); the
+workflow skeleton is static, only these matrices vary.
 """
 from __future__ import annotations
 
@@ -189,71 +185,6 @@ def merge_vars(v: dict, variants: dict[str, dict]) -> dict:
     }
 
 
-def emit(variants: dict[str, dict], cfg: dict, strategy: str) -> str:
-    depths = {name: stage_of(variants, name) for name in variants}
-    stages = [f"layer-{d}" for d in sorted(set(depths.values()))]
-    scan = cfg.get("scan", {})
-
-    pipeline: dict = {
-        "stages": stages,
-        # All heavy lifting lives in ci/*.sh so this generated YAML
-        # stays a thin dispatch layer.
-        "default": {
-            "image": "docker:28.0",
-            "services": [{"name": "docker:28.0-dind", "command": ["--tls=false"]}],
-            "interruptible": True,
-            # merge jobs (registry-only work) run on the amd fleet;
-            # build jobs carry their own arch tag below.
-            "tags": ["amd"],
-        },
-        "variables": {
-            # Kubernetes executor: build/service containers share one pod
-            # network namespace, so dind is reachable at localhost, not
-            # the service alias; TLS disabled to avoid the /certs sharing
-            # race some runners hit on first cert generation.
-            "DOCKER_HOST": "tcp://localhost:2375",
-            "DOCKER_TLS_CERTDIR": "",
-            "TRIVY_SEVERITY": scan.get("severity", "HIGH,CRITICAL"),
-            "TRIVY_IGNORE_UNFIXED": str(scan.get("ignoreUnfixed", True)).lower(),
-        },
-    }
-
-    for name, v in sorted(variants.items(), key=lambda kv: (depths[kv[0]], kv[0])):
-        common_vars = build_vars(v, variants)
-
-        for arch in v["archs"]:
-            suffix = arch.removeprefix("linux/")
-            job = {
-                "stage": f"layer-{depths[name]}",
-                # qemu strategy: everything on the amd fleet, the build
-                # script installs binfmt when the target arch differs.
-                "tags": ["amd" if strategy == "qemu" else RUNNER_TAGS[arch]],
-                "variables": {**common_vars, "IMG_ARCH": arch},
-                "script": ["sh ci/build_image.sh"],
-            }
-            needs: list = []
-            if v["from"]:
-                needs.append(f"build:{v['from']}:{suffix}")
-            if v["dockerfile"]:
-                # Dockerfile.generated is not committed: the child job
-                # (fresh checkout, python-less docker image) downloads it
-                # from the parent's generate-pipeline artifacts.
-                needs.append({"pipeline": "$PARENT_PIPELINE_ID",
-                              "job": "generate-pipeline"})
-            if needs:
-                job["needs"] = needs
-            pipeline[f"build:{name}:{suffix}"] = job
-
-        pipeline[f"merge:{name}"] = {
-            "stage": f"layer-{depths[name]}",
-            "needs": [f"build:{name}:{a.removeprefix('linux/')}" for a in v["archs"]],
-            "variables": merge_vars(v, variants),
-            "script": ["sh ci/merge_image.sh"],
-        }
-
-    return yaml.safe_dump(pipeline, sort_keys=False, width=120)
-
-
 # GitHub-hosted runner labels per build platform. ubuntu-24.04-arm =
 # GitHub's hosted arm64 fleet (free for public repos; check billing
 # before enabling on a private one — WAAS_IMAGES_BUILD_STRATEGY=qemu
@@ -295,9 +226,7 @@ def emit_github(variants: dict[str, dict], strategy: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--emitter", choices=("gitlab", "github"),
-                        default="gitlab")
-    args = parser.parse_args()
+    parser.parse_args()
 
     # Operational fallback: set the CI variable WAAS_IMAGES_BUILD_STRATEGY
     # to "qemu" (e.g. arm fleet down) to route every build job to the amd
@@ -308,12 +237,8 @@ def main() -> None:
     cfg = yaml.safe_load((ROOT / "images.yaml").read_text())
     variants = flatten_variants(load_manifests(), cfg)
     validate_archs(variants)
-    if args.emitter == "github":
-        out = ROOT / "github-matrices.json"
-        out.write_text(emit_github(variants, strategy))
-    else:
-        out = ROOT / "build-pipeline.yml"
-        out.write_text(emit(variants, cfg, strategy))
+    out = ROOT / "github-matrices.json"
+    out.write_text(emit_github(variants, strategy))
     print(f"generated {out.name} with {len(variants)} image(s), strategy={strategy}")
 
 

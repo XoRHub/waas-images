@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
 # waas fedora-xfce — lightweight full desktop on top of the fedora base.
 #
 # dnf sibling of desktop/xfce/Dockerfile (the build context is the image

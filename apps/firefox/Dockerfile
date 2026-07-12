@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
 # waas ubuntu-firefox — XFCE desktop with a managed Firefox.
 #
 # Firefox comes from the Mozilla APT repository (packages.mozilla.org):

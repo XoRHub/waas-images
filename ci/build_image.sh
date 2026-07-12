@@ -129,7 +129,7 @@ docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v trivy-cache:/root/.cache/trivy \
     ${TRIVY_MOUNT_FLAGS} \
-    aquasec/trivy:0.63.0 image \
+    aquasec/trivy:0.72.0 image \
     --severity "${TRIVY_SEVERITY:-HIGH,CRITICAL}" \
     --ignore-unfixed="${TRIVY_IGNORE_UNFIXED:-true}" \
     --exit-code "${TRIVY_EXIT_CODE:-1}" \

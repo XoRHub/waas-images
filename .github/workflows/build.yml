@@ -2,8 +2,8 @@
 # .gitlab-ci.yml keeps working unchanged while both coexist).
 #
 # Static skeleton, dynamic content: the setup job runs
-# ci/generate_pipeline.py --emitter github (same discovery, toposort and
-# validation as the GitLab child pipeline) and exposes one build matrix
+# ci/generate_pipeline.py (same discovery, toposort and validation as
+# before the GitLab emitter was retired) and exposes one build matrix
 # and one merge matrix per layer depth; the layer-N/merge-N jobs below
 # consume them via fromJSON. A manifest that creates depth > 2 fails
 # setup with an explicit message — add a layer-3/merge-3 pair here and
@@ -81,7 +81,7 @@ jobs:
         id: matrices
         run: |
           pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py --emitter github
+          python3 ci/generate_pipeline.py
           for key in layer0 layer1 layer2 merge0 merge1 merge2; do
             echo "${key}=$(jq -c ".${key}" github-matrices.json)" >> "$GITHUB_OUTPUT"
           done
@@ -119,7 +119,7 @@ jobs:
       - name: Materialise recipe Dockerfiles
         run: |
           pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py --emitter github >/dev/null
+          python3 ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -179,7 +179,7 @@ jobs:
       - name: Materialise recipe Dockerfiles
         run: |
           pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py --emitter github >/dev/null
+          python3 ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -239,7 +239,7 @@ jobs:
       - name: Materialise recipe Dockerfiles
         run: |
           pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py --emitter github >/dev/null
+          python3 ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 

@@ -23,10 +23,25 @@
 # variable as GitLab; build_image.sh installs binfmt itself).
 name: build
 
+# Path-filtered: docs, examples/, the kasm catalog mapping and
+# renovate.json don't feed the build in any way, so a push/PR touching
+# only those doesn't need 15 images x 2 arches of build/scan/sign/push.
+# Caveat: if this workflow is ever made a required status check, a PR
+# that touches none of these paths won't trigger it, and the check will
+# sit "expected" forever — either drop it from required checks or add a
+# tiny always-run job GitHub can mark green instead.
 on:
   push:
     branches: [main]
+    paths: &build-relevant-paths
+      - images.yaml
+      - base/**
+      - apps/**
+      - desktop/**
+      - ci/**
+      - .github/workflows/build.yml
   pull_request:
+    paths: *build-relevant-paths
   workflow_dispatch:
 
 permissions:

@@ -84,7 +84,7 @@ ARG INSTALL_SUDO=0
 RUN if [ "${INSTALL_SUDO}" = "1" ]; then \
         apt-get update && \
         apt-get install -y --no-install-recommends sudo && \
-        printf 'user ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/waas-dev && \
+        printf '#1000 ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/waas-dev && \
         chmod 0440 /etc/sudoers.d/waas-dev && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/*; \

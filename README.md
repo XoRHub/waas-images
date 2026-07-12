@@ -187,9 +187,9 @@ WaaS (`waas-fable`) lets a user create a workspace straight from an
 admin-approved registry image, without a per-image WorkspaceTemplate.
 Its `WorkspaceImageReconciler` periodically fetches catalog files —
 `{image, os, app, version, icon, displayName}` lists under
-`apiVersion: waas.xorhub.io/catalog/v1` (full contract:
-`docs/studies/prompt-feature13-catalog-publishing.md`) — and this repo
-publishes two of them to its GitLab **Generic Package Registry**:
+`apiVersion: waas.xorhub.io/catalog/v1` (full contract: TODO — link
+published docs once available) — and this repo publishes two of them
+to its GitLab **Generic Package Registry**:
 
 | Catalog | Generator | When | URL (`$CI_API_V4_URL/projects/<id>` prefix) |
 |---|---|---|---|

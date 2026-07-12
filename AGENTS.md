@@ -90,11 +90,10 @@ differs. If you change build/smoke/scan logic, check both emitters in
 
 ## Docs conventions
 
-- `docs/studies/*.md` are point-in-time design/arbitration documents —
-  they capture a decision at the time it was made and are not updated
-  retroactively. Don't edit an existing study to reflect new decisions;
-  write a new one or update `README.md`/`HARDENING.md`, which are the
-  living contracts.
+- Point-in-time design/arbitration documents are not kept in this repo.
+  TODO: link published design/arbitration docs here once a public docs
+  site exists. Don't rely on an existing study to reflect new
+  decisions; `README.md`/`HARDENING.md` are the living contracts.
 - Icon slugs (`icon:` in manifests) must be verified against
   `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/<slug>.svg`
   (200 = valid) before committing — an invalid slug fails silently at

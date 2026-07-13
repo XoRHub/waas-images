@@ -222,6 +222,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
+      - uses: actions/checkout@v4
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
@@ -336,6 +337,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
+      - uses: actions/checkout@v4
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
@@ -450,6 +452,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
+      - uses: actions/checkout@v4
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)

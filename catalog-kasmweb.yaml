@@ -1,0 +1,14 @@
+apiVersion: waas.xorhub.io/catalog/v1
+images:
+- image: docker.io/kasmweb/terminal:1.19.0
+  os: linux
+  app: terminal
+  version: 1.19.0
+  icon: terminal
+  displayName: Kasm Terminal
+- image: docker.io/kasmweb/firefox:1.19.0
+  os: linux
+  app: firefox
+  version: 1.19.0
+  icon: firefox
+  displayName: Kasm Firefox

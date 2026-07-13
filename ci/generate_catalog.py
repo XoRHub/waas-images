@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "pyyaml==6.0.2",
+# ]
+# ///
 """Emit catalog-waas-images.yaml — the WaaS picker catalog of the images
 THIS repo builds (format contract: README § Image catalogs and
 docs/studies/prompt-feature13-catalog-publishing.md).

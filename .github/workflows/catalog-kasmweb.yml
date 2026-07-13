@@ -33,11 +33,11 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8
       - name: Generate catalog-kasmweb.yaml
         run: |
-          pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_kasm_catalog.py
-          python3 -c "import yaml; yaml.safe_load(open('catalog-kasmweb.yaml'))"
+          uv run ci/generate_kasm_catalog.py
+          uv run ci/validate_catalog.py catalog-kasmweb.yaml
       - name: Publish to the rolling catalog release
         run: |
           gh release view catalog >/dev/null 2>&1 || \
@@ -45,3 +45,17 @@ jobs:
               --title "WaaS picker catalogs" \
               --notes "Rolling release holding the picker catalog files (README § Image catalogs). Assets are overwritten in place on every publication — always fetch, never pin."
           gh release upload catalog catalog-kasmweb.yaml --clobber
+      # Dev convenience: also keep a checked-in copy on main so the
+      # catalog is diffable/browsable without hitting Releases. The
+      # release asset above stays the source waas-fable actually
+      # fetches — this commit is secondary and best-effort.
+      # checkout@v4 leaves HEAD detached at github.sha, hence the
+      # explicit HEAD:main refspec.
+      - name: Commit catalog-kasmweb.yaml to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add catalog-kasmweb.yaml
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(catalog): regenerate catalog-kasmweb.yaml [skip ci]"
+          git push origin HEAD:main

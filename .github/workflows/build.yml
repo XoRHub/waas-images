@@ -64,10 +64,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8
       - name: Materialise recipe Dockerfiles
-        run: |
-          pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py >/dev/null
+        run: uv run ci/generate_pipeline.py >/dev/null
       - name: hadolint
         run: |
           # shellcheck disable=SC2046  # find-output splitting is deliberate (no spaces in repo paths), same as the GitLab job
@@ -77,7 +76,9 @@ jobs:
       - name: shellcheck
         run: shellcheck ci/*.sh base/*/rootfs/usr/local/bin/*
       - name: Catalog generator unit tests
-        run: python3 -m unittest discover -s ci/tests -v
+        # --with = union of the PEP 723 deps of the ci/*.py scripts the
+        # tests import (unittest discover has no script header of its own)
+        run: uv run --with pyyaml==6.0.2 --with jsonschema==4.26.0 python -m unittest discover -s ci/tests -v
 
   setup:
     runs-on: ubuntu-24.04
@@ -92,11 +93,11 @@ jobs:
       registry_image: ${{ steps.matrices.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8
       - name: Generate matrices
         id: matrices
         run: |
-          pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py
+          uv run ci/generate_pipeline.py
           for key in layer0 layer1 layer2 merge0 merge1 merge2; do
             echo "${key}=$(jq -c ".${key}" github-matrices.json)" >> "$GITHUB_OUTPUT"
           done
@@ -136,10 +137,9 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8
       - name: Materialise recipe Dockerfiles
-        run: |
-          pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py >/dev/null
+        run: uv run ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -198,10 +198,9 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8
       - name: Materialise recipe Dockerfiles
-        run: |
-          pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py >/dev/null
+        run: uv run ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -260,10 +259,9 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8
       - name: Materialise recipe Dockerfiles
-        run: |
-          pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_pipeline.py >/dev/null
+        run: uv run ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -318,11 +316,11 @@ jobs:
       CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8
       - name: Generate catalog-waas-images.yaml
         run: |
-          pip install --quiet pyyaml==6.0.2
-          python3 ci/generate_catalog.py
-          python3 -c "import yaml; yaml.safe_load(open('catalog-waas-images.yaml'))"
+          uv run ci/generate_catalog.py
+          uv run ci/validate_catalog.py catalog-waas-images.yaml
       - name: Publish to the rolling catalog release
         run: |
           gh release view catalog >/dev/null 2>&1 || \
@@ -330,3 +328,17 @@ jobs:
               --title "WaaS picker catalogs" \
               --notes "Rolling release holding the picker catalog files (README § Image catalogs). Assets are overwritten in place on every publication — always fetch, never pin."
           gh release upload catalog catalog-waas-images.yaml --clobber
+      # Dev convenience: also keep a checked-in copy on main so the
+      # catalog is diffable/browsable without hitting Releases. The
+      # release asset above stays the source waas-fable actually
+      # fetches — this commit is secondary, same continue-on-error
+      # safety net as the rest of this job. checkout@v4 leaves HEAD
+      # detached at github.sha, hence the explicit HEAD:main refspec.
+      - name: Commit catalog-waas-images.yaml to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add catalog-waas-images.yaml
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(catalog): regenerate catalog-waas-images.yaml [skip ci]"
+          git push origin HEAD:main

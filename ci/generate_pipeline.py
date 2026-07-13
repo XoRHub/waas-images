@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "pyyaml==6.0.2",
+# ]
+# ///
 """Generate the CI build matrix from images.yaml + discovered manifests.
 
 Discovery: every {base,desktop,apps}/*/manifest.yaml becomes, per

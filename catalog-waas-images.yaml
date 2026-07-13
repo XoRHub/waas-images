@@ -1,0 +1,92 @@
+apiVersion: waas.xorhub.io/catalog/v1
+images:
+- image: ghcr.io/xorhub/waas-images/debian-base-rdp:1.4.0
+  os: linux
+  app: debian-base-rdp
+  version: 1.4.0
+  icon: debian-linux
+  displayName: Headless apt-based graphical session (TigerVNC Xvnc + openbox fallback), VNC…
+- image: ghcr.io/xorhub/waas-images/debian-base-vnc:1.4.0
+  os: linux
+  app: debian-base-vnc
+  version: 1.4.0
+  icon: debian-linux
+  displayName: Headless apt-based graphical session (TigerVNC Xvnc + openbox fallback), VNC…
+- image: ghcr.io/xorhub/waas-images/debian-xfce:1.1.0
+  os: linux
+  app: debian-xfce
+  version: 1.1.0
+  icon: debian-linux
+  displayName: XFCE desktop, VNC + RDP, derived from the apt base-rdp image.
+- image: ghcr.io/xorhub/waas-images/dev-ssh:1.0.2
+  os: linux
+  app: dev-ssh
+  version: 1.0.2
+  icon: terminal
+  displayName: 'Terminal-first development environment: git/tmux/build tooling plus a hardened…'
+- image: ghcr.io/xorhub/waas-images/fedora-base-rdp:1.0.0
+  os: linux
+  app: fedora-base-rdp
+  version: 1.0.0
+  icon: fedora
+  displayName: Headless Fedora graphical session (TigerVNC Xvnc + openbox fallback), VNC and…
+- image: ghcr.io/xorhub/waas-images/fedora-base-vnc:1.0.0
+  os: linux
+  app: fedora-base-vnc
+  version: 1.0.0
+  icon: fedora
+  displayName: Headless Fedora graphical session (TigerVNC Xvnc + openbox fallback), VNC and…
+- image: ghcr.io/xorhub/waas-images/fedora-xfce:1.0.0
+  os: linux
+  app: fedora-xfce
+  version: 1.0.0
+  icon: fedora
+  displayName: XFCE desktop on Fedora, VNC + RDP, derived from fedora-base-rdp.
+- image: ghcr.io/xorhub/waas-images/ubuntu-base-rdp:1.4.0
+  os: linux
+  app: ubuntu-base-rdp
+  version: 1.4.0
+  icon: ubuntu-linux
+  displayName: Headless apt-based graphical session (TigerVNC Xvnc + openbox fallback), VNC…
+- image: ghcr.io/xorhub/waas-images/ubuntu-base-vnc:1.4.0
+  os: linux
+  app: ubuntu-base-vnc
+  version: 1.4.0
+  icon: ubuntu-linux
+  displayName: Headless apt-based graphical session (TigerVNC Xvnc + openbox fallback), VNC…
+- image: ghcr.io/xorhub/waas-images/ubuntu-chrome:1.0.0
+  os: linux
+  app: ubuntu-chrome
+  version: 1.0.0
+  icon: google-chrome
+  displayName: XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint pinned),…
+- image: ghcr.io/xorhub/waas-images/ubuntu-devtools:1.1.0
+  os: linux
+  app: ubuntu-devtools
+  version: 1.1.0
+  icon: visual-studio-code
+  displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and the…
+- image: ghcr.io/xorhub/waas-images/ubuntu-devtools-dev:1.1.0
+  os: linux
+  app: ubuntu-devtools-dev
+  version: 1.1.0
+  icon: visual-studio-code
+  displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and the…
+- image: ghcr.io/xorhub/waas-images/ubuntu-firefox:1.0.3
+  os: linux
+  app: ubuntu-firefox
+  version: 1.0.3
+  icon: firefox
+  displayName: XFCE desktop with managed, policy-hardened Firefox.
+- image: ghcr.io/xorhub/waas-images/ubuntu-libreoffice:1.0.0
+  os: linux
+  app: ubuntu-libreoffice
+  version: 1.0.0
+  icon: libreoffice
+  displayName: XFCE desktop with LibreOffice (Ubuntu main packages, no third-party repo),…
+- image: ghcr.io/xorhub/waas-images/ubuntu-xfce:1.1.0
+  os: linux
+  app: ubuntu-xfce
+  version: 1.1.0
+  icon: ubuntu-linux
+  displayName: XFCE desktop, VNC + RDP, derived from the apt base-rdp image.

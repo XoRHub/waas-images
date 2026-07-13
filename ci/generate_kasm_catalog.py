@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "pyyaml==6.0.2",
+# ]
+# ///
 """Emit catalog-kasmweb.yaml — the WaaS picker catalog of the upstream
 docker.io/kasmweb/* images (same format contract as
 catalog-waas-images.yaml, README § Image catalogs).

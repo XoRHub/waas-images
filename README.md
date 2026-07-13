@@ -203,6 +203,25 @@ download URL (`.../releases/download/catalog/<file>`) — a public repo
 needs no auth for this; a private one would need a token with
 `contents:read`.
 
+Both files are also committed straight to `main` as a dev convenience
+(diffable/browsable without hitting Releases): each publish job pushes
+its regenerated catalog directly after uploading the release asset, with
+`[skip ci]` since neither file is in `build.yml`'s path filter anyway.
+The release asset remains the source `waas-fable` actually fetches — the
+repo copy is secondary and can lag by one commit if the push races
+another writer.
+
+Before publication, both catalogs are validated by
+`ci/validate_catalog.py` against `ci/schema/v1.schema.json` — the JSON
+Schema of the wire format, vendored from the `waas` repo (which is the
+source of truth; re-sync procedure in `ci/schema/README.md`). `make
+catalogs` reproduces the same regenerate-and-validate loop locally, so
+a change to `images.yaml`, a `manifest.yaml` or
+`kasm/catalog-mapping.yaml` can be checked before pushing. The only
+tooling prerequisite is [uv](https://docs.astral.sh/uv/) — every
+`ci/*.py` script pins its own dependencies inline (PEP 723), locally
+and in CI alike.
+
 Design notes:
 
 - Catalog entries reference `<name>:<version>` with **no digest**: the

@@ -5,6 +5,11 @@
 #   make run   IMAGE=ubuntu-base-vnc     # then connect a VNC client to :15901
 #   make smoke IMAGE=ubuntu-base-vnc
 #   make lint
+#   make catalogs    # regenerate + schema-validate both picker catalogs
+#
+# Python tooling runs through uv: each ci/*.py script declares its own
+# pinned dependencies inline (PEP 723 `# /// script` block), so uv is
+# the only local prerequisite — no pip install, no venv to manage.
 
 IMAGE      ?= ubuntu-base-vnc
 REGISTRY   ?= waas-local
@@ -58,13 +63,23 @@ else ifeq ($(IMAGE),ubuntu-chrome)
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
 endif
 
-.PHONY: build run smoke lint clean recipes
+.PHONY: build run smoke lint clean recipes catalogs
 
 # Materialise Dockerfile.generated for every recipe: manifest (gitignored;
-# CI regenerates them in the generate stage). Needs python3 + pyyaml,
-# same as the pipeline generator.
+# CI regenerates them in the generate stage).
 recipes:
-	python3 ci/generate_pipeline.py
+	uv run ci/generate_pipeline.py
+
+# Regenerate both picker catalogs, then validate them against the
+# vendored waas schema (ci/schema/v1.schema.json — see ci/schema/
+# README.md). Local twin of the CI validation in build.yml's catalog
+# job and catalog-kasmweb.yml. The kasm generator hits Docker Hub
+# best-effort (knownVersion fallback); generate_catalog.py never checks
+# that image refs exist — this target checks the FORMAT, not the tags.
+catalogs: recipes
+	uv run ci/generate_catalog.py --registry $(REGISTRY)
+	uv run ci/generate_kasm_catalog.py
+	uv run ci/validate_catalog.py catalog-waas-images.yaml catalog-kasmweb.yaml
 
 build: recipes
 	docker build $(ARGS) $(if $(wildcard $(CTX)/Dockerfile.generated),-f $(CTX)/Dockerfile.generated) -t $(TAG) $(CTX)

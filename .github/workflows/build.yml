@@ -177,8 +177,56 @@ jobs:
       # (docker/build-push-action does this internally, we don't use it).
       - name: Expose GitHub Actions cache variables
         uses: crazy-max/ghaction-github-runtime@v4.0.0
-      - name: Build, smoke, scan, push
+      - name: Build, smoke, push
         run: sh ci/build_image.sh
+
+  # Deliberately outside build_image.sh and outside merge-0/catalog's
+  # `needs:` — see ci/build_image.sh's header. Runs on ubuntu-24.04
+  # regardless of the image's target arch: trivy only inspects the
+  # already-pushed image's filesystem/packages remotely, it never
+  # executes it natively.
+  scan-0:
+    needs: [setup, layer-0]
+    if: needs.setup.outputs.layer0 != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer0) }}
+    runs-on: ubuntu-24.04
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy scan
+        run: sh ci/scan_image.sh
+
+  sbom-0:
+    needs: [setup, layer-0]
+    if: needs.setup.outputs.layer0 != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer0) }}
+    runs-on: ubuntu-24.04
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+    steps:
+      - name: Generate SBOM (cyclonedx)
+        run: sh ci/sbom_image.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.IMG_NAME }}-${{ strategy.job-index }}
+          path: sbom.cdx.json
+          retention-days: 90
 
   merge-0:
     needs: [setup, layer-0]
@@ -244,8 +292,51 @@ jobs:
       # (docker/build-push-action does this internally, we don't use it).
       - name: Expose GitHub Actions cache variables
         uses: crazy-max/ghaction-github-runtime@v4.0.0
-      - name: Build, smoke, scan, push
+      - name: Build, smoke, push
         run: sh ci/build_image.sh
+
+  scan-1:
+    needs: [setup, layer-1]
+    if: needs.setup.outputs.layer1 != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer1) }}
+    runs-on: ubuntu-24.04
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy scan
+        run: sh ci/scan_image.sh
+
+  sbom-1:
+    needs: [setup, layer-1]
+    if: needs.setup.outputs.layer1 != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer1) }}
+    runs-on: ubuntu-24.04
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+    steps:
+      - name: Generate SBOM (cyclonedx)
+        run: sh ci/sbom_image.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.IMG_NAME }}-${{ strategy.job-index }}
+          path: sbom.cdx.json
+          retention-days: 90
 
   merge-1:
     needs: [setup, layer-1]
@@ -311,8 +402,51 @@ jobs:
       # (docker/build-push-action does this internally, we don't use it).
       - name: Expose GitHub Actions cache variables
         uses: crazy-max/ghaction-github-runtime@v4.0.0
-      - name: Build, smoke, scan, push
+      - name: Build, smoke, push
         run: sh ci/build_image.sh
+
+  scan-2:
+    needs: [setup, layer-2]
+    if: needs.setup.outputs.layer2 != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer2) }}
+    runs-on: ubuntu-24.04
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy scan
+        run: sh ci/scan_image.sh
+
+  sbom-2:
+    needs: [setup, layer-2]
+    if: needs.setup.outputs.layer2 != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.setup.outputs.layer2) }}
+    runs-on: ubuntu-24.04
+    env:
+      CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
+      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
+      IMG_NAME: ${{ matrix.IMG_NAME }}
+      IMG_VERSION: ${{ matrix.IMG_VERSION }}
+      IMG_ARCH: ${{ matrix.IMG_ARCH }}
+    steps:
+      - name: Generate SBOM (cyclonedx)
+        run: sh ci/sbom_image.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.IMG_NAME }}-${{ strategy.job-index }}
+          path: sbom.cdx.json
+          retention-days: 90
 
   merge-2:
     needs: [setup, layer-2]
@@ -349,6 +483,11 @@ jobs:
   # URL equivalent is the rolling `catalog` release (fixed tag, assets
   # overwritten in place with --clobber, never pinned); the scheduled
   # catalog-kasmweb.yml workflow publishes its file to the same release.
+  #
+  # scan-N/sbom-N are deliberately absent from `needs:` below: a trivy
+  # finding or an SBOM failure must never block catalog regeneration
+  # for images that built and pushed fine (see ci/build_image.sh's
+  # header for the incident that motivated this split).
   catalog:
     needs: [lint, setup, layer-0, layer-1, layer-2, merge-0, merge-1, merge-2]
     if: >-

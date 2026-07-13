@@ -1,12 +1,19 @@
 #!/bin/sh
-# build_image.sh — build, smoke-test, scan and push ONE image for ONE
+# build_image.sh — build, smoke-test and push ONE image for ONE
 # architecture, natively on a runner of that arch (runner tags amd/arm —
 # no QEMU anywhere). ci/merge_image.sh then assembles the arch tags into
 # the final manifest list. Driven by IMG_* / SMOKE_* variables emitted
 # by ci/generate_pipeline.py.
 #
 # Flow: native build (--load) -> smoke test against a real container ->
-# trivy gate -> push of the arch tag <version>-g<sha>-<arch>.
+# push of the arch tag <version>-g<sha>-<arch>. Trivy (ci/scan_image.sh)
+# and the SBOM (ci/sbom_image.sh) run as separate jobs against this
+# pushed tag, deliberately NOT in this script and NOT in merge/catalog's
+# `needs:` — a scan finding must stay visible (that job still fails
+# red) without blocking the push: the catalog job gates on every
+# layer/merge job succeeding, so a HIGH CVE in ONE image (e.g. a
+# node_modules blob bundled by a third-party .deb) used to silently
+# block catalog regeneration for every other image in the same run too.
 #
 # Everything here — the per-arch tag, the build cache, a derived
 # image's BASE_IMAGE parent — stays on CI_REGISTRY_IMAGE (GHCR):
@@ -89,8 +96,8 @@ fi
 CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # One flag set for both invocations below: the artifact pushed after the
-# gates must be byte-identical (same config, cache-hot layers) to the
-# one that was smoked and scanned.
+# gate must be byte-identical (same config, cache-hot layers) to the
+# one that was smoke-tested.
 buildx_build() {
     # shellcheck disable=SC2086
     docker buildx build \
@@ -123,42 +130,12 @@ buildx_build --load --cache-to "type=gha,scope=${IMG_NAME}-${ARCH},mode=max"
 log "smoke test"
 SMOKE_IMAGE="${IMAGE}:${ARCH_TAG}" sh ci/smoke_test.sh
 
-# ----------------------------------------------------------------- scan
-# Per-image exceptions: a "${IMG_CONTEXT}/.trivyignore", if present, is
-# mounted in and passed via --ignorefile. Each entry must be a real,
-# investigated false positive (documented inline in the file) — this is
-# not a place to silence real findings.
-TRIVY_MOUNT_FLAGS=""
-TRIVY_IGNOREFILE_FLAG=""
-if [ -f "${IMG_CONTEXT}/.trivyignore" ]; then
-    TRIVY_MOUNT_FLAGS="-v $(pwd)/${IMG_CONTEXT}/.trivyignore:/.trivyignore:ro"
-    TRIVY_IGNOREFILE_FLAG="--ignorefile /.trivyignore"
-fi
-
-log "trivy scan (gate: ${TRIVY_SEVERITY:-HIGH,CRITICAL})"
-# ghcr.io mirror, not aquasec/trivy (Docker Hub): this pull runs on
-# EVERY matrix leg, so on docker.io it alone would burn ~30 of the
-# 200-pulls/6h Docker Hub budget per full pipeline run. ghcr.io has no
-# pull rate limit for public images.
-# shellcheck disable=SC2086
-docker run --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v trivy-cache:/root/.cache/trivy \
-    ${TRIVY_MOUNT_FLAGS} \
-    ghcr.io/aquasecurity/trivy:0.72.0 image \
-    --severity "${TRIVY_SEVERITY:-HIGH,CRITICAL}" \
-    --ignore-unfixed="${TRIVY_IGNORE_UNFIXED:-true}" \
-    --exit-code "${TRIVY_EXIT_CODE:-1}" \
-    --scanners vuln,secret \
-    ${TRIVY_IGNOREFILE_FLAG} \
-    "${IMAGE}:${ARCH_TAG}"
-
 # ----------------------------------------------------------------- push
 # Re-run the SAME build (cache-hot: no layer work) with a registry
 # output in OCI mediatypes, instead of `docker push`: the engine pushes
 # Docker mediatypes, and a Docker manifest LIST cannot carry the index
 # annotations merge_image.sh sets (buildx drops them silently — verified
 # live). Gates stay ahead of the registry: this runs only after smoke
-# and trivy passed on the --load'ed image.
+# passed on the --load'ed image (trivy/SBOM run downstream, see header).
 log "push ${IMAGE}:${ARCH_TAG} (OCI mediatypes)"
 buildx_build --output type=registry,oci-mediatypes=true

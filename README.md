@@ -108,10 +108,13 @@ Multi-arch: `linux/amd64` + `linux/arm64` built NATIVELY on the amd/arm
 runner fleets — no QEMU in the nominal path (per-image override, e.g.
 Firefox is amd64-only until packages.mozilla.org's arm64 debs are
 validated). Pipeline: generate (incl. recipe compilation) →
-hadolint/shellcheck → per image and per arch *build → smoke → trivy
-gate → push `-g<sha>-<arch>` (OCI mediatypes)*, then a merge job
-assembles the annotated manifest list and cosign-signs it. Both smoke
-and scan run on BOTH arches. Fallback: the CI variable
+hadolint/shellcheck → per image and per arch *build → smoke → push
+`-g<sha>-<arch>` (OCI mediatypes)*, then a merge job assembles the
+annotated manifest list and cosign-signs it. Trivy and the SBOM run as
+separate jobs against the pushed tag, in parallel with the merge —
+both smoke (a hard gate) and push run on BOTH arches, but a trivy
+finding or an SBOM failure never blocks the push, merge or catalog: it
+only fails that specific job, visibly. Fallback: the CI variable
 `WAAS_IMAGES_BUILD_STRATEGY=qemu` routes every build job to the amd
 fleet under emulation (arm fleet down) — same jobs, same gates, just
 slower.

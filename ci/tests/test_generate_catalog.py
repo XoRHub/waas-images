@@ -2,6 +2,7 @@
 manifests (README § Image catalogs / docs/studies/
 prompt-feature13-catalog-publishing.md). stdlib unittest only."""
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -87,6 +88,98 @@ class CatalogFormat(unittest.TestCase):
         for entry in out["images"]:
             self.assertLessEqual(len(entry["displayName"]), 80)
             self.assertTrue(entry["displayName"].endswith("…"))
+
+
+class CatalogFallback(unittest.TestCase):
+    """A variant whose current <version> was never actually published
+    (this run's build failed) must fall back to the last version that
+    WAS, per catalog-waas-images.yaml, not emit a 404 — and must
+    disappear entirely if there's nothing to fall back to."""
+
+    def setUp(self):
+        self.variants = gp.flatten_variants(MANIFESTS, CFG)
+
+    def test_unpublished_falls_back_to_previous(self):
+        previous = {
+            "ubuntu-xfce": {
+                "image": "registry.gitlab.com/acme/waas-images/ubuntu-xfce:1.0.4",
+                "os": "linux", "app": "ubuntu-xfce", "version": "1.0.4",
+            },
+        }
+        out = gc.catalog(
+            self.variants, "registry.gitlab.com/acme/waas-images",
+            exists=lambda ref: "ubuntu-xfce:1.1.0" not in ref,
+            previous=previous,
+        )
+        by_app = {e["app"]: e for e in out["images"]}
+        entry = by_app["ubuntu-xfce"]
+        self.assertEqual(entry["image"],
+                          "registry.gitlab.com/acme/waas-images/ubuntu-xfce:1.0.4")
+        self.assertEqual(entry["version"], "1.0.4")
+        # Metadata (icon/displayName) still reflects the CURRENT manifest,
+        # only image/version are pinned to the fallback.
+        self.assertEqual(entry["icon"], "ubuntu-linux")
+        # The other two variants were unaffected.
+        self.assertEqual(sorted(by_app), ["debian-xfce", "ubuntu-firefox", "ubuntu-xfce"])
+
+    def test_unpublished_without_previous_is_omitted(self):
+        out = gc.catalog(
+            self.variants, "registry.gitlab.com/acme/waas-images",
+            exists=lambda ref: "ubuntu-xfce:1.1.0" not in ref,
+            previous={},
+        )
+        by_app = {e["app"]: e for e in out["images"]}
+        self.assertNotIn("ubuntu-xfce", by_app)
+        self.assertEqual(sorted(by_app), ["debian-xfce", "ubuntu-firefox"])
+
+    def test_published_ignores_previous(self):
+        # exists() says every ref is fine — the fallback path must
+        # never trigger even if `previous` disagrees.
+        previous = {
+            "ubuntu-xfce": {
+                "image": "registry.gitlab.com/acme/waas-images/ubuntu-xfce:0.0.1",
+                "os": "linux", "app": "ubuntu-xfce", "version": "0.0.1",
+            },
+        }
+        out = gc.catalog(
+            self.variants, "registry.gitlab.com/acme/waas-images",
+            exists=lambda ref: True, previous=previous,
+        )
+        by_app = {e["app"]: e for e in out["images"]}
+        self.assertEqual(by_app["ubuntu-xfce"]["version"], "1.1.0")
+
+
+class LoadPrevious(unittest.TestCase):
+    def test_missing_file_returns_empty(self):
+        self.assertEqual(gc.load_previous(Path("/nonexistent/catalog.yaml")), {})
+
+    def test_malformed_yaml_returns_empty(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write("apiVersion: [unterminated")
+            path = Path(f.name)
+        try:
+            self.assertEqual(gc.load_previous(path), {})
+        finally:
+            path.unlink()
+
+    def test_valid_file_keyed_by_app(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(
+                "apiVersion: waas.xorhub.io/catalog/v1\n"
+                "images:\n"
+                "- image: reg/ubuntu-xfce:1.0.4\n"
+                "  app: ubuntu-xfce\n"
+                "  version: \"1.0.4\"\n"
+            )
+            path = Path(f.name)
+        try:
+            self.assertEqual(
+                gc.load_previous(path),
+                {"ubuntu-xfce": {"image": "reg/ubuntu-xfce:1.0.4",
+                                  "app": "ubuntu-xfce", "version": "1.0.4"}},
+            )
+        finally:
+            path.unlink()
 
 
 if __name__ == "__main__":

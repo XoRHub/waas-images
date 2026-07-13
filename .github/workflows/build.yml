@@ -512,11 +512,9 @@ jobs:
   # required is a basic sanity floor (schema/manifest parsing must
   # work) — scan-N/sbom-N are, as above, absent from `needs:` entirely.
   # continue-on-error = allow_failure: the catalog is a secondary
-  # deliverable, its failure never makes a green build look red. GitHub
-  # has no Generic Package Registry — the stable-URL equivalent is the
-  # rolling `catalog` release (fixed tag, assets overwritten in place
-  # with --clobber, never pinned); the scheduled catalog-kasmweb.yml
-  # workflow publishes its file to the same release.
+  # deliverable, its failure never makes a green build look red. The
+  # committed copy on main IS the source waas-fable fetches (Contents
+  # API/raw URL pinned to main) — no GitHub Release involved.
   catalog:
     needs: [lint, setup, layer-0, layer-1, layer-2, merge-0, merge-1, merge-2]
     if: >-
@@ -527,7 +525,7 @@ jobs:
     runs-on: ubuntu-24.04
     continue-on-error: true
     permissions:
-      contents: write   # create the rolling release + upload its asset
+      contents: write   # commit the regenerated catalog to main (Contents API)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -547,20 +545,11 @@ jobs:
         run: |
           uv run ci/generate_catalog.py
           uv run ci/validate_catalog.py catalog-waas-images.yaml
-      - name: Publish to the rolling catalog release
-        run: |
-          gh release view catalog >/dev/null 2>&1 || \
-            gh release create catalog --latest=false \
-              --title "WaaS picker catalogs" \
-              --notes "Rolling release holding the picker catalog files (README § Image catalogs). Assets are overwritten in place on every publication — always fetch, never pin."
-          gh release upload catalog catalog-waas-images.yaml --clobber
-      # Dev convenience: also keep a checked-in copy on main so the
-      # catalog is diffable/browsable without hitting Releases. The
-      # release asset above stays the source waas-fable actually
-      # fetches — this commit is secondary, same continue-on-error
-      # safety net as the rest of this job. Via the Contents API
-      # (ci/commit_catalog.sh), not git push: main requires verified
-      # signatures and a bot's plain git push is never marked Verified
-      # (GH013 — confirmed live, this used to fail every real change).
+      # Sole publish step: main is the source of truth, fetched directly
+      # (Contents API/raw URL pinned to main) — no GitHub Release. Via
+      # the Contents API (ci/commit_catalog.sh), not git push: main
+      # requires verified signatures and a bot's plain git push is
+      # never marked Verified (GH013 — confirmed live, this used to
+      # fail every real change).
       - name: Commit catalog-waas-images.yaml to main
         run: sh ci/commit_catalog.sh catalog-waas-images.yaml

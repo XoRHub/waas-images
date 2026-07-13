@@ -224,27 +224,23 @@ admin-approved registry image, without a per-image WorkspaceTemplate.
 Its `WorkspaceImageReconciler` periodically fetches catalog files —
 `{image, os, app, version, icon, displayName}` lists under
 `apiVersion: waas.xorhub.io/catalog/v1` (full contract: TODO — link
-published docs once available) — published as assets on this repo's
-rolling `catalog` GitHub Release (fixed tag, assets overwritten in
-place with `--clobber`, never pinned):
+published docs once available) — directly from this repo's `main`
+branch (Contents API or raw URL, e.g.
+`https://raw.githubusercontent.com/XoRHub/waas-images/main/catalog-waas-images.yaml`).
+No GitHub Release involved: `main` is the only source of truth, one
+job, one commit, `[skip ci]` since neither file is in `build.yml`'s
+path filter anyway.
 
 | Catalog | Generator | When |
 |---|---|---|
 | `catalog-waas-images.yaml` — the images this repo builds | `ci/generate_catalog.py` (reuses `generate_pipeline.py`'s manifest discovery — the catalog cannot drift from the build matrix) | `build.yml`'s `catalog` job, every default-branch run, after `build`/`merge` |
 | `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script only resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable) | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
 
-Both assets are fetched by `waas-fable` from the `catalog` release's
-download URL (`.../releases/download/catalog/<file>`) — a public repo
-needs no auth for this; a private one would need a token with
-`contents:read`.
-
-Both files are also committed straight to `main` as a dev convenience
-(diffable/browsable without hitting Releases): each publish job pushes
-its regenerated catalog directly after uploading the release asset, with
-`[skip ci]` since neither file is in `build.yml`'s path filter anyway.
-The release asset remains the source `waas-fable` actually fetches — the
-repo copy is secondary and can lag by one commit if the push races
-another writer.
+Both files are committed via the Contents API (`ci/commit_catalog.sh`),
+not `git push`: `main` requires verified signatures and a bot's plain
+git push is never marked Verified (GH013 — confirmed live, this used
+to fail every real change). A public repo needs no auth to read them
+back; a private one would need a token with `contents:read`.
 
 Before publication, both catalogs are validated by
 `ci/validate_catalog.py` against `ci/schema/v1.schema.json` — the JSON
@@ -270,13 +266,12 @@ Design notes:
   VNC-only desktop parent for `apps/*`) never appear here at all: the
   generator skips any variant name starting with `core-` before it
   reaches the fallback/truncation logic above.
-- **Rolling release, not versioned releases**: this repo has no
-  repo-global version or git tag (each image versions independently via
-  its manifest), so per-version releases would need an artificial tag
-  just to hold the asset. The `catalog` release's fixed tag needs no
-  bump, and re-uploading with `--clobber` on every run is exactly the
-  "consumer always wants the newest catalog" semantic. `-g<sha>`-tagged
-  branch builds never publish (same guard as the immutable tags).
+- **`main` is the only ref, always overwritten in place**: this repo has
+  no repo-global version or git tag (each image versions independently
+  via its manifest), so there is nothing meaningful to pin a catalog
+  snapshot to anyway — `waas-fable` always wants the newest catalog, and
+  `main` always has it. `-g<sha>`-tagged branch builds never publish
+  (same guard as the immutable image tags).
 - Both publish jobs are best-effort (`continue-on-error`): the catalogs
   are secondary deliverables and must never block image publication.
 

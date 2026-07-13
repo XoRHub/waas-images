@@ -8,10 +8,9 @@
 # kasm/catalog-mapping.yaml stays hand-curated; this workflow only
 # resolves each image's newest X.Y.Z release tag from Docker Hub
 # (falling back to the mapping's knownVersion when Hub is unreachable —
-# the generator is best-effort by design) and republishes the asset on
-# the rolling `catalog` release that build.yml's catalog job also
-# publishes to, plus a best-effort commit of the checked-in copy (see
-# ci/commit_catalog.sh).
+# the generator is best-effort by design) and commits the regenerated
+# file straight to main (see ci/commit_catalog.sh) — main is the only
+# source waas-fable fetches from, no GitHub Release involved.
 #
 # Caveat: GitHub disables cron-triggered workflows after 60 days without
 # repo activity — re-enable from the Actions tab, or run the
@@ -25,7 +24,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # create the rolling release + upload its asset
+  contents: write   # commit the regenerated catalog to main (Contents API)
 
 jobs:
   publish-catalog-kasmweb:
@@ -39,18 +38,9 @@ jobs:
         run: |
           uv run ci/generate_kasm_catalog.py
           uv run ci/validate_catalog.py catalog-kasmweb.yaml
-      - name: Publish to the rolling catalog release
-        run: |
-          gh release view catalog >/dev/null 2>&1 || \
-            gh release create catalog --latest=false \
-              --title "WaaS picker catalogs" \
-              --notes "Rolling release holding the picker catalog files (README § Image catalogs). Assets are overwritten in place on every publication — always fetch, never pin."
-          gh release upload catalog catalog-kasmweb.yaml --clobber
-      # Dev convenience: also keep a checked-in copy on main so the
-      # catalog is diffable/browsable without hitting Releases. The
-      # release asset above stays the source waas-fable actually
-      # fetches — this commit is secondary and best-effort. Via the
-      # Contents API (ci/commit_catalog.sh), not git push: main
+      # Sole publish step: main is the source of truth, fetched directly
+      # (Contents API/raw URL pinned to main) — no GitHub Release. Via
+      # the Contents API (ci/commit_catalog.sh), not git push: main
       # requires verified signatures and a bot's plain git push is
       # never marked Verified.
       - name: Commit catalog-kasmweb.yaml to main

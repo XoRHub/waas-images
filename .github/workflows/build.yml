@@ -102,7 +102,7 @@ jobs:
   lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
@@ -137,7 +137,7 @@ jobs:
       merge2: ${{ steps.matrices.outputs.merge2 }}
       short_sha: ${{ steps.matrices.outputs.short_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Generate matrices
         id: matrices
@@ -176,7 +176,7 @@ jobs:
       SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
@@ -211,7 +211,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Trivy scan
@@ -231,12 +231,12 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
         run: sh ci/sbom_image.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ matrix.IMG_NAME }}-${{ strategy.job-index }}
           path: sbom.cdx.json
@@ -263,7 +263,7 @@ jobs:
       IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Merge manifest list + sign
@@ -297,7 +297,7 @@ jobs:
       SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
@@ -327,7 +327,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Trivy scan
@@ -347,12 +347,12 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
         run: sh ci/sbom_image.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ matrix.IMG_NAME }}-${{ strategy.job-index }}
           path: sbom.cdx.json
@@ -379,7 +379,7 @@ jobs:
       IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Merge manifest list + sign
@@ -413,7 +413,7 @@ jobs:
       SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
@@ -443,7 +443,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Trivy scan
@@ -463,12 +463,12 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
         run: sh ci/sbom_image.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ matrix.IMG_NAME }}-${{ strategy.job-index }}
           path: sbom.cdx.json
@@ -495,7 +495,7 @@ jobs:
       IMG_DESCRIPTION: ${{ matrix.IMG_DESCRIPTION }}
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
         run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Merge manifest list + sign
@@ -529,7 +529,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2
       # Manifest-only (no registry needed) — runs regardless of the
       # registry-dependent steps below. Never committed: the script

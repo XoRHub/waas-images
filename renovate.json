@@ -7,13 +7,31 @@
   ],
   "packageRules": [
     {
-      "description": "OS base bumps (Ubuntu LTS / Debian stable / Fedora) are a deliberate decision: group and label, never automerge.",
+      "description": "Ubuntu LTS bumps are a deliberate decision: group per OS (not with Debian/Fedora — unrelated release cadences, no reason a Fedora bump should wait on an Ubuntu review), label, never automerge.",
       "matchPackageNames": [
-        "ubuntu",
-        "debian",
+        "ubuntu"
+      ],
+      "groupName": "ubuntu base image",
+      "labels": [
+        "os-bump"
+      ]
+    },
+    {
+      "description": "Debian stable bumps are a deliberate decision: group per OS, label, never automerge.",
+      "matchPackageNames": [
+        "debian"
+      ],
+      "groupName": "debian base image",
+      "labels": [
+        "os-bump"
+      ]
+    },
+    {
+      "description": "Fedora bumps are a deliberate decision: group per OS, label, never automerge.",
+      "matchPackageNames": [
         "fedora"
       ],
-      "groupName": "os base images",
+      "groupName": "fedora base image",
       "labels": [
         "os-bump"
       ]

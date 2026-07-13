@@ -32,7 +32,7 @@
 
 # Full base reference so one parameterized Dockerfile serves every
 # apt-based OS in images.yaml's os: map (ubuntu-24.04, debian-13, ...).
-ARG OS_BASE_IMAGE=ubuntu:24.04
+ARG OS_BASE_IMAGE=ubuntu:26.04
 # hadolint ignore=DL3006
 FROM ${OS_BASE_IMAGE}
 

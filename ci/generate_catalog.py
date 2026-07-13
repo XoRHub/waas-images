@@ -114,7 +114,9 @@ def catalog(
         }
         if v["icon"]:
             entry["icon"] = v["icon"]
-        if v["description"]:
+        if v.get("display_name"):
+            entry["displayName"] = v["display_name"]
+        elif v["description"]:
             entry["displayName"] = textwrap.shorten(
                 v["description"], width=80, placeholder="…")
         images.append(entry)

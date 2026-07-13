@@ -34,6 +34,10 @@ import recipe_compiler  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 LAYER_DIRS = ("base", "desktop", "apps")
+# Stable GitHub URL prefix for the per-image READMEs ci/generate_image_
+# readme.py commits under docs/images/ — the source for the
+# org.opencontainers.image.documentation label/annotation.
+DOCS_BASE_URL = "https://github.com/XoRHub/waas-images/blob/main/docs/images"
 # GitLab runner tag per build platform. An arch without a native runner
 # fleet must not appear in a manifest.
 RUNNER_TAGS = {"linux/amd64": "amd", "linux/arm64": "arm"}
@@ -98,13 +102,25 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 "dockerfile": m["dockerfile"],
                 "os": os_key,
                 "layer": m.get("layer", m["context"].split("/", 1)[0]),
-                "description": " ".join(str(m.get("description", "")).split()),
+                # Root + per-variant override (like icon:/displayName:):
+                # most manifests share one description across variants,
+                # but a variant whose capabilities genuinely differ from
+                # its siblings (e.g. ubuntu-desktop vs. ubuntu-xfce) can
+                # set its own.
+                "description": " ".join(
+                    str(v.get("description", m.get("description", ""))).split()
+                ),
                 "profile": profile,
                 "version": str(m["version"]),
                 # Catalog-only key (ci/generate_catalog.py): dashboard-icons
                 # slug, never baked into the image. Root + per-variant
                 # override, like smoke:/buildArgs:.
                 "icon": v.get("icon", m.get("icon", "")),
+                # Catalog/docs-only key: friendly name overriding the
+                # default truncated-description derivation (ci/
+                # generate_catalog.py, ci/generate_image_readme.py).
+                # Root + per-variant override, same convention as icon:.
+                "display_name": v.get("displayName", m.get("displayName", "")),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
                 "build_args": build_args,
@@ -159,6 +175,10 @@ def build_vars(v: dict, variants: dict[str, dict]) -> dict:
         "IMG_FROM_REF": (
             f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
         ),
+        # org.opencontainers.image.documentation source: the generated
+        # per-image README (ci/generate_image_readme.py), always at this
+        # stable path once committed — never guessed, always this repo.
+        "IMG_DOCUMENTATION": f"{DOCS_BASE_URL}/{v['name']}.md",
         "SMOKE_PROFILE": v["profile"],
         "SMOKE_VNC": "1" if v["smoke"].get("vnc") else "0",
         "SMOKE_RDP": "1" if v["smoke"].get("rdp") else "0",
@@ -188,6 +208,7 @@ def merge_vars(v: dict, variants: dict[str, dict]) -> dict:
         "IMG_FROM_REF": (
             f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
         ),
+        "IMG_DOCUMENTATION": f"{DOCS_BASE_URL}/{v['name']}.md",
     }
 
 

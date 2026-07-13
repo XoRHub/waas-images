@@ -7,17 +7,21 @@ the platform's Workspace CR (operator → pod → guacd → wwt → browser).
 base/ubuntu         TigerVNC Xvnc + openbox, optional xrdp — apt,   ┐
                     OS-parameterized FROM: ubuntu-* AND debian-*    │
 base/fedora         dnf sibling (own Dockerfile + rootfs copy)      │
-desktop/xfce        XFCE on the apt base-rdp (ubuntu-* + debian-*)  ├─ layers
-desktop/xfce-fedora XFCE on fedora-base-rdp                         │
+desktop/xfce        XFCE, VNC+RDP+opt-in SSH (ubuntu-xfce,          │
+                    debian-xfce); also ubuntu-desktop, VNC-only,    ├─ layers
+                    the parent for every apps/* image below         │
+desktop/xfce-fedora XFCE on fedora-base-rdp, VNC+RDP+opt-in SSH     │
 apps/firefox        XFCE + policy-managed Firefox                   │
 apps/devtools       VS Code + toolchain (+ ubuntu-devtools-dev)     │
 apps/libreoffice    recipe:-generated (no Dockerfile in tree)       │
-apps/chrome         recipe:-generated, third-party repo             ┘
+apps/chrome         recipe:-generated, third-party repo             │
+apps/dev-ssh        terminal-first, VNC + SSH, no desktop layer      ┘
 images.yaml         global build config (OS matrix, archs, scan gate)
 ci/                 pipeline generator + recipe compiler, build/smoke scripts
 .github/workflows/  GitHub Actions pipeline (canonical forge)
 examples/           WorkspaceTemplate + NetworkPolicy
 HARDENING.md        verifiable hardening checklist + threat model
+docs/images/        generated per-image README (README § Per-image README)
 ```
 
 ## Design in one paragraph
@@ -31,6 +35,11 @@ non-root, both protocols always show the same session. Services run
 under **tini + supervisord**, entirely unprivileged; the entrypoint
 renders all mutable config into tmpfs so the rootfs can be read-only.
 The web client is guacd/wwt from the platform — no noVNC in the images.
+RDP (and the opt-in SSH below) are capabilities of **OS-only** images
+only — the base layer and the desktop XFCE layer. Every `apps/*` image
+is built on the VNC-only `ubuntu-desktop` parent and never ships `xrdp`
+or `sshd` at all: a desktop dedicated to one app can only ever activate
+VNC.
 
 ## Contract with the Workspace CR
 
@@ -38,13 +47,14 @@ The web client is guacd/wwt from the platform — no noVNC in the images.
 |---|---|
 | VNC port | `5901` (RFB 3.8, VncAuth) — guacd protocol `vnc`, the default for `os: linux` |
 | RDP port | `3389` (TLS negotiated) — only images built with `INSTALL_RDP=1` and `WAAS_RDP_ENABLED=1` |
+| SSH port | `2222` (publickey only, guacd protocol `ssh`) — only images built with `INSTALL_SSH=1` (OS-only images: `ubuntu-xfce`, `debian-xfce`, `fedora-xfce`, `apps/dev-ssh`); off by default even then, opt in with `WAAS_SSH_ENABLED=1` |
 | Readiness/liveness | TCP open on the template port ⇔ protocol server accepting connections (matches the operator's TCP probes) |
 | User | `waas_user`, UID/GID `1000:1000` (build-args `WAAS_USER`/`WAAS_UID`/`WAAS_GID`), home **`/home/waas_user`** = operator's PVC mount (`DefaultHomeMountPath`); fresh PVCs are seeded from `/etc/skel` |
 | Writable paths | `/home/waas_user` (PVC), `/tmp`, `/run` (emptyDirs) — everything else read-only-safe |
 | Init hook | optional ConfigMap mounted at `/etc/waas/init.d/` — `*.sh` sourced at boot after the image's own `entrypoint.d/` hooks (UID 1000, no privilege change; see HARDENING.md) |
 | Dev profile | `-dev` tags only (e.g. `ubuntu-devtools-dev`): sudo NOPASSWD baked, `WAAS_PROFILE=dev` warning at boot; pod must set `readOnlyRootFilesystem: false`, `allowPrivilegeEscalation: true` AND keep the runtime default capability set (cap-drop ALL keeps sudo dead); keep the catalog `allowedGroups` gate (HARDENING.md § Reduced profile) |
 | Required env | `VNC_PW` — one shared session password. **Refuses to start without it.** Standalone `docker run` only: `RDP_PASSWORD` is accepted as a fallback (`VNC_PW` wins when both are set); under the platform the operator always injects `VNC_PW`. |
-| Optional env | `VNC_RESOLUTION` (`1920x1080`), `VNC_COL_DEPTH` (`24`), `WAAS_VNC_ENABLED` (`1`), `WAAS_RDP_ENABLED`, `RDP_AUTH_ENABLED` (`true`), `WAAS_STARTUP` (session command), `WAAS_TLS_CERT`/`WAAS_TLS_KEY` (mounted RDP cert) |
+| Optional env | `VNC_RESOLUTION` (`1920x1080`), `VNC_COL_DEPTH` (`24`), `WAAS_VNC_ENABLED` (`1`), `WAAS_RDP_ENABLED`, `RDP_AUTH_ENABLED` (`true`), `WAAS_SSH_ENABLED` (`0`), `WAAS_SSH_AUTHORIZED_KEYS`/`_FILE` (required once SSH is enabled), `WAAS_SSH_HOST_KEY_FILE` (stable host identity), `WAAS_STARTUP` (session command), `WAAS_TLS_CERT`/`WAAS_TLS_KEY` (mounted RDP cert) |
 | Recommended pod securityContext | `runAsNonRoot`, `runAsUser/fsGroup: 1000`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault` → PodSecurity **restricted** compliant |
 
 See `examples/workspacetemplate-xfce.yaml` for a complete template.
@@ -62,6 +72,19 @@ warning when this mode is active. The value must be exactly `true` or
 `false`; anything else aborts startup. VNC authentication (VncAuth) is
 unaffected in both modes, and a session password is required in every
 configuration.
+
+**SSH (`WAAS_SSH_ENABLED`, opt-in, OS-only images)**: unlike RDP, SSH
+has no auto-generated fallback credential — there is nothing analogous
+to `VNC_PW` for a keypair — so it defaults to **off** even on an image
+built with `INSTALL_SSH=1` (`ubuntu-xfce`, `debian-xfce`, `fedora-xfce`;
+`apps/dev-ssh` is the one image where it defaults on, being the whole
+point of that image). Set `WAAS_SSH_ENABLED=1` plus
+`WAAS_SSH_AUTHORIZED_KEYS` (or `WAAS_SSH_AUTHORIZED_KEYS_FILE`) from a
+Secret to opt in; the entrypoint refuses to start SSH without an
+authorized key, and refuses to even try on an image that was never
+built with `INSTALL_SSH=1` (no `sshd` binary present). Publickey
+authentication only — the unprivileged `sshd` cannot read
+`/etc/shadow`, so password auth is impossible by construction.
 
 **Secrets**: nothing is baked into images; the password arrives via env
 at runtime. Today the api-server reads the guacd-side password from the
@@ -158,6 +181,7 @@ is maintained by hand; these keys are its future source of truth).
 | `org.opencontainers.image.revision` | full git commit of the build |
 | `org.opencontainers.image.created` | build timestamp (UTC, RFC 3339) |
 | `org.opencontainers.image.source` | URL of the forge that ran the build (`CI_PROJECT_URL`, exported by the GitHub workflow) |
+| `org.opencontainers.image.documentation` | URL of the generated per-image README (`docs/images/<variant>.md`, see § Per-image README) |
 | `org.opencontainers.image.licenses` | `Apache-2.0` |
 | `org.opencontainers.image.vendor` | `XorHub` |
 | `io.xorhub.waas.os` | resolved `os:` key (`ubuntu-24.04`, `debian-13`, `fedora-43`) |
@@ -232,6 +256,11 @@ Design notes:
   tagging), so the ref is already as stable as a digest.
 - The `os:` field is always `linux` (workspace OS family, what guacd
   cares about) — not the build distro that `io.xorhub.waas.os` carries.
+- `displayName` comes from the manifest's optional `displayName:` key
+  (variant > manifest, same root+override convention as `icon:`) when
+  set, else falls back to the truncated `description:` as before — a
+  purely additive way to give any image a friendlier public name
+  without touching its build-wiring `name:`.
 - **Rolling release, not versioned releases**: this repo has no
   repo-global version or git tag (each image versions independently via
   its manifest), so per-version releases would need an artificial tag
@@ -241,6 +270,21 @@ Design notes:
   branch builds never publish (same guard as the immutable tags).
 - Both publish jobs are best-effort (`continue-on-error`): the catalogs
   are secondary deliverables and must never block image publication.
+
+## Per-image README
+
+`ci/generate_image_readme.py` (reuses `generate_pipeline.py`'s manifest
+discovery, same pattern as `ci/generate_catalog.py`) renders one
+`docs/images/<variant-name>.md` per published image, linking this
+project and [WaaS](https://github.com/XoRHub/waas) — the platform that
+deploys these images — and listing exactly which protocols that image
+supports (VNC always; RDP/SSH only when that variant's `smoke.rdp`/
+`smoke.ssh` say so) with the env vars to enable each. Generated files
+are committed straight to `main`, same treatment as the two picker
+catalogs (§ Image catalogs) — they must live at a stable GitHub URL to
+be linkable from the `org.opencontainers.image.documentation` label/
+annotation (§ Image metadata). Regenerate with `make image-readmes`
+after any manifest change.
 
 ## Adding an app image
 
@@ -256,7 +300,7 @@ strip, final `USER 1000:1000` — so they cannot be forgotten:
 name: ubuntu-libreoffice
 layer: apps
 version: "1.0.0"
-from: ubuntu-xfce
+from: ubuntu-desktop
 recipe:
   apt: [libreoffice, libreoffice-gtk3]
   autostart: libreoffice   # or startup: <cmd> (bare base), program: <cmd> (supervisord)
@@ -287,7 +331,7 @@ Renovate-tracked pin is exactly the hand-written case (`FIREFOX_VERSION`).
    name: ubuntu-<name>
    layer: apps
    version: "1.0.0"
-   from: ubuntu-xfce        # or ubuntu-base-vnc for single-app style
+   from: ubuntu-desktop     # or ubuntu-base-vnc for single-app style
    variants:
      - name: ubuntu-<name>
        smoke: { vnc: true }

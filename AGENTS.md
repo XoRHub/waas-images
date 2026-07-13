@@ -26,6 +26,7 @@ manifest/recipe instead and regenerate:
 | `github-matrices.json` | `python3 ci/generate_pipeline.py` |
 | `*/Dockerfile.generated` | `make recipes` (only for directories with a `recipe:` block) |
 | `catalog-waas-images.yaml`, `catalog-kasmweb.yaml` | `ci/generate_catalog.py` / `ci/generate_kasm_catalog.py` |
+| `docs/images/*.md` | `ci/generate_image_readme.py` (`make image-readmes`) — committed like the catalogs above, not gitignored: it must live at a stable URL for the `org.opencontainers.image.documentation` label |
 
 The actual source lives in `images.yaml` (global matrix/config) and one
 `manifest.yaml` per image directory under `base/`, `desktop/`, `apps/`.
@@ -74,8 +75,9 @@ python3 -m unittest discover -s ci/tests
 ```
 
 Before declaring a change to `ci/generate_pipeline.py`,
-`ci/generate_catalog.py`, `ci/generate_kasm_catalog.py`, or
-`ci/recipe_compiler.py` done, run the matching tests in `ci/tests/` —
+`ci/generate_catalog.py`, `ci/generate_kasm_catalog.py`,
+`ci/generate_image_readme.py`, or `ci/recipe_compiler.py` done, run the
+matching tests in `ci/tests/` —
 they assert the exact YAML/JSON shape downstream consumers
 (`waas-fable`'s reconciler, the GitHub Actions skeleton) depend on.
 

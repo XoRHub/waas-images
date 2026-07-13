@@ -23,6 +23,15 @@ is enforced, so the list is verifiable, not aspirational.
 - [x] **Minimal packages**: `--no-install-recommends` everywhere,
       `apt-get clean`, apt lists / caches / logs removed, xterm purged
       from the XFCE layer.
+- [x] **App-dedicated images carry no remote-desktop surface beyond
+      VNC**: every `apps/*` image is built on the VNC-only
+      `ubuntu-desktop` parent (no `xrdp`) and is never built with
+      `INSTALL_SSH=1` (no `sshd`) — a single-app desktop can only ever
+      activate VNC, not merely by runtime toggle but because the
+      binaries themselves are absent.
+      → `desktop/xfce/manifest.yaml`'s `ubuntu-desktop` variant; verify:
+      `docker run --rm <apps-image> sh -c 'command -v xrdp; command -v sshd'`
+      — both report not found.
 - [x] **Pinned supply chain**: base image pinned by Renovate digest pin;
       Mozilla APT repo verified against its published key fingerprint and
       priority-pinned; CI tool images version-pinned.
@@ -57,6 +66,20 @@ is enforced, so the list is verifiable, not aspirational.
       model). `WAAS_AUDIO_ENABLED=0` disables the daemon entirely.
       → `waas-entrypoint`, `etc/waas/pulse/default.pa.tpl`; verify: CI
       smoke test runs `pactl info` against tcp:4713.
+- [x] **SSH, when built in, is publickey-only and off by default**
+      (`INSTALL_SSH=1` bakes an unprivileged `sshd`; `WAAS_SSH_ENABLED`
+      still defaults to `0` even then — there is no auto-generated
+      fallback credential the way `VNC_PW` has one, so a desktop image
+      must never assume an operator meant to expose it). Password
+      authentication is impossible by construction: the unprivileged
+      `sshd` cannot read `/etc/shadow`. The entrypoint refuses to start
+      with `WAAS_SSH_ENABLED=1` and no authorized key, and refuses to
+      even try if `sshd` isn't in the image at all (same guard pattern
+      as RDP's `xrdp` check).
+      → `desktop/xfce/Dockerfile`,
+      `rootfs/etc/waas/entrypoint.d/50-sshd.sh` (same design as
+      `apps/dev-ssh`); verify: `docker run --rm <img> command -v sshd`
+      reports not found unless the image was built with `INSTALL_SSH=1`.
 
 ## To apply on the platform side (documented contract)
 

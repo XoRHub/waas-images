@@ -29,3 +29,20 @@ spec:
   env:
     - name: VNC_RESOLUTION
       value: "1920x1080"
+  # Optional: opt this OS-only image into SSH (built with INSTALL_SSH=1;
+  # off by default even then — README § "Contract with the Workspace
+  # CR"). There is no auto-generated SSH credential, so an authorized
+  # key must come from an externally-provisioned Secret, same pattern as
+  # workspacetemplate-dev-ssh.yaml:
+  #   env:
+  #     - name: WAAS_SSH_ENABLED
+  #       value: "1"
+  #     - name: WAAS_SSH_AUTHORIZED_KEYS
+  #       valueFrom:
+  #         secretKeyRef: { name: xfce-ssh-credentials, key: authorized-keys }
+  #   protocols:
+  #     - name: ssh
+  #       port: 2222
+  #       credentialsSecretRef: xfce-ssh-credentials
+  #     - name: vnc
+  #       port: 5901

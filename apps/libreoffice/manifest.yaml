@@ -6,8 +6,8 @@ layer: apps
 description: >
   XFCE desktop with LibreOffice (Ubuntu main packages, no third-party
   repo), auto-started via XDG autostart.
-version: "1.0.0"
-from: ubuntu-xfce
+version: "1.0.1"
+from: ubuntu-desktop
 icon: libreoffice
 
 recipe:

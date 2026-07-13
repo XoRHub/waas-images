@@ -6,6 +6,7 @@
 #   make smoke IMAGE=ubuntu-base-vnc
 #   make lint
 #   make catalogs    # regenerate + schema-validate both picker catalogs
+#   make image-readmes  # regenerate docs/images/*.md (org.opencontainers.image.documentation source)
 #
 # Python tooling runs through uv: each ci/*.py script declares its own
 # pinned dependencies inline (PEP 723 `# /// script` block), so uv is
@@ -24,10 +25,13 @@ else ifeq ($(IMAGE),ubuntu-base-rdp)
   ARGS := --build-arg INSTALL_RDP=1
 else ifeq ($(IMAGE),ubuntu-xfce)
   CTX := desktop/xfce
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-base-rdp:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-base-rdp:dev --build-arg INSTALL_SSH=1
+else ifeq ($(IMAGE),ubuntu-desktop)
+  CTX := desktop/xfce
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-base-vnc:dev
 else ifeq ($(IMAGE),ubuntu-firefox)
   CTX := apps/firefox
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-desktop:dev
 else ifeq ($(IMAGE),dev-ssh)
   CTX := apps/dev-ssh
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-base-vnc:dev
@@ -39,7 +43,7 @@ else ifeq ($(IMAGE),debian-base-rdp)
   ARGS := --build-arg INSTALL_RDP=1 --build-arg OS_BASE_IMAGE=debian:13-slim
 else ifeq ($(IMAGE),debian-xfce)
   CTX := desktop/xfce
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/debian-base-rdp:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/debian-base-rdp:dev --build-arg INSTALL_SSH=1
 else ifeq ($(IMAGE),fedora-base-vnc)
   CTX := base/fedora
   ARGS := --build-arg INSTALL_RDP=0
@@ -48,22 +52,22 @@ else ifeq ($(IMAGE),fedora-base-rdp)
   ARGS := --build-arg INSTALL_RDP=1
 else ifeq ($(IMAGE),fedora-xfce)
   CTX := desktop/xfce-fedora
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/fedora-base-rdp:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/fedora-base-rdp:dev --build-arg INSTALL_SSH=1
 else ifeq ($(IMAGE),ubuntu-devtools)
   CTX := apps/devtools
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-desktop:dev
 else ifeq ($(IMAGE),ubuntu-devtools-dev)
   CTX := apps/devtools
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev --build-arg INSTALL_SUDO=1 --build-arg WAAS_PROFILE=dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-desktop:dev --build-arg INSTALL_SUDO=1 --build-arg WAAS_PROFILE=dev
 else ifeq ($(IMAGE),ubuntu-libreoffice)
   CTX := apps/libreoffice
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-desktop:dev
 else ifeq ($(IMAGE),ubuntu-chrome)
   CTX := apps/chrome
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-desktop:dev
 endif
 
-.PHONY: build run smoke lint clean recipes catalogs
+.PHONY: build run smoke lint clean recipes catalogs image-readmes
 
 # Materialise Dockerfile.generated for every recipe: manifest (gitignored;
 # CI regenerates them in the generate stage).
@@ -80,6 +84,11 @@ catalogs: recipes
 	uv run ci/generate_catalog.py --registry $(REGISTRY)
 	uv run ci/generate_kasm_catalog.py
 	uv run ci/validate_catalog.py catalog-waas-images.yaml catalog-kasmweb.yaml
+
+# Regenerate the per-image README committed under docs/images/ (the
+# org.opencontainers.image.documentation label/annotation points there).
+image-readmes: recipes
+	uv run ci/generate_image_readme.py
 
 build: recipes
 	docker build $(ARGS) $(if $(wildcard $(CTX)/Dockerfile.generated),-f $(CTX)/Dockerfile.generated) -t $(TAG) $(CTX)

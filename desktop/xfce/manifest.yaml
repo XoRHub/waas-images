@@ -1,28 +1,53 @@
 name: ubuntu-xfce
 layer: desktop
 description: XFCE desktop, VNC + RDP, derived from the apt base-rdp image.
-version: "1.1.0"
+version: "1.2.0"
 from: ubuntu-base-rdp
 # No "xfce" slug in dashboard-icons — the OS icon is the best fit.
 icon: ubuntu-linux
 
 variants:
   - name: ubuntu-xfce
+    buildArgs:
+      INSTALL_SSH: "1"
     smoke:
       vnc: true
       rdp: true
+      ssh: true
       audio: true
       env:
         WAAS_RDP_ENABLED: "1"
+        WAAS_SSH_ENABLED: "1"
+        WAAS_SSH_AUTHORIZED_KEYS: "smoke-placeholder-not-a-real-key"
 
   # Debian 13 leg: same Dockerfile, parent switched to the debian base.
   - name: debian-xfce
     os: debian-13
     from: debian-base-rdp
     icon: debian-linux
+    buildArgs:
+      INSTALL_SSH: "1"
     smoke:
       vnc: true
       rdp: true
+      ssh: true
       audio: true
       env:
         WAAS_RDP_ENABLED: "1"
+        WAAS_SSH_ENABLED: "1"
+        WAAS_SSH_AUTHORIZED_KEYS: "smoke-placeholder-not-a-real-key"
+
+  # VNC-only desktop, the parent for every apps/* image: no xrdp, no
+  # sshd baked in at all (INSTALL_SSH left unset) — RDP/SSH are
+  # structurally absent here, not merely disabled, because an image
+  # dedicated to a single app may only ever activate VNC.
+  - name: ubuntu-desktop
+    from: ubuntu-base-vnc
+    displayName: "Ubuntu Desktop (VNC only)"
+    description: >
+      XFCE desktop, VNC only — the parent for every apps/* image; no
+      xrdp or sshd at all.
+    smoke:
+      vnc: true
+      rdp: false
+      audio: true

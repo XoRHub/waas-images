@@ -112,6 +112,7 @@ buildx_build() {
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA:-}" \
         --label "org.opencontainers.image.created=${CREATED}" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL:-}" \
+        --label "org.opencontainers.image.documentation=${IMG_DOCUMENTATION:-}" \
         --label "org.opencontainers.image.licenses=Apache-2.0" \
         --label "org.opencontainers.image.vendor=XorHub" \
         --label "io.xorhub.waas.os=${IMG_OS:-}" \

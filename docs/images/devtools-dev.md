@@ -1,6 +1,6 @@
-# Headless apt-based graphical session (TigerVNC Xvnc + openbox fallback), VNC and optional xrdp bridge, PulseAudio for guacd's VNC audio stream, non-root, read-only-rootfs friendly.
+# XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a dev toolchain (git, build-essential, python3, jq, tmux, ...). No autostart: VS Code sits in the XFCE menu.
 
-Image `ubuntu-base-vnc` — layer `base`, OS `ubuntu-24.04`, version `1.4.0`.
+Image `devtools-dev` — layer `apps`, OS `ubuntu-noble`, version `1.0.0`.
 
 Built by [waas-images](https://github.com/XoRHub/waas-images), deployed by the [WaaS platform](https://github.com/XoRHub/waas).
 

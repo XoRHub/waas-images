@@ -1,6 +1,6 @@
-# Headless apt-based graphical session (TigerVNC Xvnc + openbox fallback), VNC and optional xrdp bridge, PulseAudio for guacd's VNC audio stream, non-root, read-only-rootfs friendly.
+# XFCE desktop with LibreOffice (Ubuntu main packages, no third-party repo), auto-started via XDG autostart.
 
-Image `debian-base-vnc` — layer `base`, OS `debian-13`, version `1.4.0`.
+Image `libreoffice` — layer `apps`, OS `ubuntu-noble`, version `1.0.0`.
 
 Built by [waas-images](https://github.com/XoRHub/waas-images), deployed by the [WaaS platform](https://github.com/XoRHub/waas).
 

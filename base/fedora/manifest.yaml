@@ -4,32 +4,41 @@
 # of the rootfs scripts (see the Dockerfile header for the deliberate
 # duplication and its cost). Scope matches Debian's: base + desktop
 # only, apps/ stays on Ubuntu.
-name: fedora-base
+#
+# core-*: internal build parent only — never published to
+# catalog-waas-images.yaml (ci/generate_catalog.py skips any name
+# starting with "core-").
+name: fedora-core
 layer: base
 os: fedora-43
 description: >
   Headless Fedora graphical session (TigerVNC Xvnc + openbox fallback),
-  VNC and optional xrdp bridge, PulseAudio for guacd's VNC audio
+  VNC and optional xrdp bridge + sshd, PulseAudio for guacd's VNC audio
   stream, non-root, read-only-rootfs friendly.
 version: "1.0.0"
 icon: fedora
 
 variants:
-  - name: fedora-base-vnc
+  - name: core-fedora-43
     buildArgs:
       INSTALL_RDP: "0"
+      INSTALL_SSH: "0"
     smoke:
       vnc: true
       rdp: false
       audio: true
 
-  - name: fedora-base-rdp
+  - name: core-fedora-43-full
     buildArgs:
       INSTALL_RDP: "1"
+      INSTALL_SSH: "1"
     smoke:
       vnc: false
       rdp: true
+      ssh: true
       audio: true
       env:
         WAAS_VNC_ENABLED: "0"
         WAAS_RDP_ENABLED: "1"
+        WAAS_SSH_ENABLED: "1"
+        WAAS_SSH_AUTHORIZED_KEYS: "smoke-placeholder-not-a-real-key"

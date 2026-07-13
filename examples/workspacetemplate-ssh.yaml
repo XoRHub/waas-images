@@ -1,0 +1,57 @@
+# WorkspaceTemplate opting an OS-only image into SSH as the primary
+# protocol, VNC kept as the graphical fallback — the full secrets-clean
+# credential flow end to end (see workspacetemplate-xfce.yaml for the
+# no-credentials VNC/RDP default; this is the pattern to copy once you
+# need a persistent/known secret instead):
+#
+#   ┌ Secret desktop-ssh-credentials (ESO/Vault-provided) ─────────────┐
+#   │ username:        waas_user                                       │
+#   │ private-key:     <openssh private key>   → guacd (connect side)  │
+#   │ authorized-keys: <matching public key>   → pod (accept side)     │
+#   │ password:        <desktop password>      → pod VNC + guacd vnc   │
+#   └─────────────────────────────────────────────────────────────────┘
+#
+# No credential ever appears in this CR: the pod reads env from the
+# Secret, and the api-server resolves `credentialsSecretRef` server-side
+# at connect time (never exposed to the browser). Any OS-only image
+# built with INSTALL_SSH=1 works here (ubuntu-desktop-noble,
+# debian-desktop-13, fedora-desktop-43) — apps/* images never carry
+# sshd at all, see README § "Design in one paragraph".
+apiVersion: waas.xorhub.io/v1alpha1
+kind: WorkspaceTemplate
+metadata:
+  name: ubuntu-desktop-noble-ssh
+spec:
+  displayName: "Ubuntu 24.04 (noble) — Desktop over SSH"
+  description: "Full XFCE desktop over SSH (terminal-first); VNC fallback for GUI needs."
+  os: linux
+  image: registry.example.com/waas/waas-images/ubuntu-desktop-noble:1.0.0
+  homeSize: 20Gi
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 4Gi }
+  env:
+    - name: WAAS_SSH_ENABLED
+      value: "1"
+    - name: WAAS_SSH_AUTHORIZED_KEYS
+      valueFrom:
+        secretKeyRef: { name: desktop-ssh-credentials, key: authorized-keys }
+    - name: VNC_PW
+      valueFrom:
+        secretKeyRef: { name: desktop-ssh-credentials, key: password }
+  protocols:
+    - name: ssh
+      port: 2222
+      default: true
+      credentialsSecretRef: desktop-ssh-credentials
+      params:
+        color-scheme: green-black
+        font-size: "12"
+      # Users may retune the terminal at connect time / in-session.
+      userParams: [font-size, color-scheme, read-only]
+    - name: vnc
+      port: 5901
+      credentialsSecretRef: desktop-ssh-credentials
+      userParams: [color-depth, read-only]
+  overrides:
+    allowedFields: [protocol, protocolParams, resources]

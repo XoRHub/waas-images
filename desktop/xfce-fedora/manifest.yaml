@@ -1,15 +1,13 @@
-name: fedora-xfce
+name: fedora-desktop
 layer: desktop
 os: fedora-43
-description: XFCE desktop on Fedora, VNC + RDP, derived from fedora-base-rdp.
-version: "1.1.0"
-from: fedora-base-rdp
+description: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
+version: "1.0.0"
+from: core-fedora-43-full
 icon: fedora
 
 variants:
-  - name: fedora-xfce
-    buildArgs:
-      INSTALL_SSH: "1"
+  - name: fedora-desktop-43
     smoke:
       vnc: true
       rdp: true

@@ -89,29 +89,23 @@ class CatalogFormat(unittest.TestCase):
             self.assertLessEqual(len(entry["displayName"]), 80)
             self.assertTrue(entry["displayName"].endswith("…"))
 
-    def test_display_name_manifest_override(self):
-        # Manifest-level displayName: applies to every variant that
-        # doesn't set its own (same root+override convention as icon:).
-        manifests = [dict(MANIFESTS[0], displayName="Ubuntu Desktop (custom)")]
+    def test_core_prefixed_variants_never_published(self):
+        # core-*: internal build parents only (base + the apps/* desktop
+        # parent) — must never appear in the catalog, even though
+        # flatten_variants happily returns them like any other variant.
+        manifests = MANIFESTS + [{
+            "name": "ubuntu-core",
+            "layer": "base",
+            "context": "base/ubuntu",
+            "dockerfile": None,
+            "description": "internal parent",
+            "version": "1.0.0",
+            "variants": [{"name": "core-ubuntu-noble"}],
+        }]
         variants = gp.flatten_variants(manifests, CFG)
         out = gc.catalog(variants, "reg")
         by_app = {e["app"]: e for e in out["images"]}
-        self.assertEqual(by_app["ubuntu-xfce"]["displayName"], "Ubuntu Desktop (custom)")
-        self.assertEqual(by_app["debian-xfce"]["displayName"], "Ubuntu Desktop (custom)")
-
-    def test_display_name_variant_override(self):
-        manifest = dict(MANIFESTS[0])
-        manifest["variants"] = [
-            {"name": "ubuntu-xfce", "displayName": "Custom Ubuntu"},
-            {"name": "debian-xfce", "os": "debian-13", "icon": "debian-linux"},
-        ]
-        variants = gp.flatten_variants([manifest], CFG)
-        out = gc.catalog(variants, "reg")
-        by_app = {e["app"]: e for e in out["images"]}
-        self.assertEqual(by_app["ubuntu-xfce"]["displayName"], "Custom Ubuntu")
-        # No override on this variant: falls back to the description, as
-        # before.
-        self.assertEqual(by_app["debian-xfce"]["displayName"], MANIFESTS[0]["description"])
+        self.assertNotIn("core-ubuntu-noble", by_app)
 
 
 class CatalogFallback(unittest.TestCase):

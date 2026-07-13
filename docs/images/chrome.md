@@ -1,6 +1,6 @@
-# XFCE desktop with managed, policy-hardened Firefox.
+# XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint pinned), auto-started via XDG autostart; the pod is the sandbox boundary (inner Chrome sandbox disabled, Firefox-gap precedent).
 
-Image `ubuntu-firefox` — layer `apps`, OS `ubuntu-24.04`, version `1.0.4`.
+Image `chrome` — layer `apps`, OS `ubuntu-noble`, version `1.0.0`.
 
 Built by [waas-images](https://github.com/XoRHub/waas-images), deployed by the [WaaS platform](https://github.com/XoRHub/waas).
 

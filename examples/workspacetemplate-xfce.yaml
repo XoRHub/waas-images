@@ -7,18 +7,18 @@
 # resolves it server-side at connect time — zero template configuration.
 # For a persistent/known secret instead, set
 # `protocols[].credentialsSecretRef` + env `valueFrom.secretKeyRef` (see
-# workspacetemplate-dev-ssh.yaml for the full pattern).
+# workspacetemplate-ssh.yaml for the full pattern).
 apiVersion: waas.xorhub.io/v1alpha1
 kind: WorkspaceTemplate
 metadata:
-  name: ubuntu-xfce
+  name: ubuntu-desktop-noble
 spec:
-  displayName: "Ubuntu 24.04 — XFCE"
+  displayName: "Ubuntu 24.04 (noble) — Desktop"
   description: "Full XFCE desktop over VNC (recommended protocol for Linux)."
   os: linux
   # Pin the digest (or at least the immutable semver tag) — never a
   # mutable tag; ArgoCD-friendly.
-  image: registry.example.com/waas/waas-images/ubuntu-xfce:1.0.0
+  image: registry.example.com/waas/waas-images/ubuntu-desktop-noble:1.0.0
   # 5901 = VNC (default; guacd protocol "vnc"). Set 3389 + WAAS_RDP_ENABLED
   # to probe/connect over RDP instead.
   port: 5901
@@ -33,7 +33,7 @@ spec:
   # off by default even then — README § "Contract with the Workspace
   # CR"). There is no auto-generated SSH credential, so an authorized
   # key must come from an externally-provisioned Secret, same pattern as
-  # workspacetemplate-dev-ssh.yaml:
+  # workspacetemplate-ssh.yaml:
   #   env:
   #     - name: WAAS_SSH_ENABLED
   #       value: "1"

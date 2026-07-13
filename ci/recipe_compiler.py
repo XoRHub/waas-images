@@ -118,8 +118,9 @@ ENV WAAS_STARTUP="{command}"
 """
 
 # Long-running app under supervisord: ship an entrypoint.d hook (the
-# same extension point apps/dev-ssh uses) that renders the program
-# fragment into the runtime supervisor.d at boot.
+# same extension point base/ubuntu/rootfs/etc/waas/entrypoint.d/
+# 50-sshd.sh uses) that renders the program fragment into the runtime
+# supervisor.d at boot.
 PROGRAM = """\
 # supervisord-managed app: restart semantics via a runtime-rendered
 # fragment (supervisord only includes $WAAS_RUNTIME_DIR/supervisor.d).

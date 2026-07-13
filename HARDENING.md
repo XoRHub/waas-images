@@ -25,11 +25,13 @@ is enforced, so the list is verifiable, not aspirational.
       from the XFCE layer.
 - [x] **App-dedicated images carry no remote-desktop surface beyond
       VNC**: every `apps/*` image is built on the VNC-only
-      `ubuntu-desktop` parent (no `xrdp`) and is never built with
-      `INSTALL_SSH=1` (no `sshd`) — a single-app desktop can only ever
-      activate VNC, not merely by runtime toggle but because the
-      binaries themselves are absent.
-      → `desktop/xfce/manifest.yaml`'s `ubuntu-desktop` variant; verify:
+      `core-ubuntu-noble-xfce` parent, itself built on the VNC-only
+      `core-ubuntu-noble` core (never the `-full` core, no `xrdp`, no
+      `sshd`) — a single-app desktop can only ever activate VNC, not
+      merely by runtime toggle but because the binaries themselves are
+      absent.
+      → `desktop/xfce/manifest.yaml`'s `core-ubuntu-noble-xfce` variant;
+      verify:
       `docker run --rm <apps-image> sh -c 'command -v xrdp; command -v sshd'`
       — both report not found.
 - [x] **Pinned supply chain**: base image pinned by Renovate digest pin;
@@ -76,10 +78,10 @@ is enforced, so the list is verifiable, not aspirational.
       with `WAAS_SSH_ENABLED=1` and no authorized key, and refuses to
       even try if `sshd` isn't in the image at all (same guard pattern
       as RDP's `xrdp` check).
-      → `desktop/xfce/Dockerfile`,
-      `rootfs/etc/waas/entrypoint.d/50-sshd.sh` (same design as
-      `apps/dev-ssh`); verify: `docker run --rm <img> command -v sshd`
-      reports not found unless the image was built with `INSTALL_SSH=1`.
+      → `base/ubuntu/Dockerfile`, `base/fedora/Dockerfile`,
+      `rootfs/etc/waas/entrypoint.d/50-sshd.sh`; verify:
+      `docker run --rm <img> command -v sshd` reports not found unless
+      the image was built with `INSTALL_SSH=1`.
 
 ## To apply on the platform side (documented contract)
 
@@ -101,7 +103,7 @@ need `sudo apt install` in-session. That can never be a runtime flag —
 sudo is a setuid binary (stripped from standard images), `apt` writes
 outside `/home/waas_user|/tmp|/run`, and `no-new-privileges` kills setuid
 transitions — so it is a **build-time variant with a distinct tag**
-(`<name>-dev`, e.g. `ubuntu-devtools-dev`), a documented reduced
+(`<name>-dev`, e.g. `devtools-dev`), a documented reduced
 profile, not a regression of this checklist.
 
 Items **lifted** on `-dev` images, and only these:
@@ -130,7 +132,7 @@ variant whose name lacks the `-dev` suffix or whose `profile:` is not
 `dev`; the image bakes `WAAS_PROFILE=dev` and the entrypoint logs a
 loud boot warning (`RDP_AUTH_ENABLED=false` precedent); the catalog
 entry must keep its `allowedGroups` gate (platform-side, documented
-contract — same list as the standard `ubuntu-devtools`).
+contract — same list as the standard `devtools`).
 
 ## Runtime init hook (`/etc/waas/init.d/`)
 

@@ -1,13 +1,13 @@
 # First real consumer of the recipe: compiler — no Dockerfile in this
 # directory: ci/recipe_compiler.py emits Dockerfile.generated from the
 # block below (guards baked by the template).
-name: ubuntu-libreoffice
+name: libreoffice
 layer: apps
 description: >
   XFCE desktop with LibreOffice (Ubuntu main packages, no third-party
   repo), auto-started via XDG autostart.
-version: "1.0.1"
-from: ubuntu-desktop
+version: "1.0.0"
+from: core-ubuntu-noble-xfce
 icon: libreoffice
 
 recipe:
@@ -15,6 +15,6 @@ recipe:
   autostart: libreoffice
 
 variants:
-  - name: ubuntu-libreoffice
+  - name: libreoffice
     smoke:
       vnc: true

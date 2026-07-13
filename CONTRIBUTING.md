@@ -19,9 +19,9 @@ Every local target wraps the exact same scripts CI uses, so "works
 locally" means "works in CI":
 
 ```
-make build IMAGE=ubuntu-xfce   # build
-make run   IMAGE=ubuntu-xfce   # run, VNC on localhost:15901 (password: devpassword)
-make smoke IMAGE=ubuntu-xfce   # ci/smoke_test.sh: protocol handshake + hardening checks
+make build IMAGE=ubuntu-desktop-noble   # build
+make run   IMAGE=ubuntu-desktop-noble   # run, VNC on localhost:15901 (password: devpassword)
+make smoke IMAGE=ubuntu-desktop-noble   # ci/smoke_test.sh: protocol handshake + hardening checks
 make lint                      # hadolint + shellcheck over every Dockerfile/script
 ```
 
@@ -44,15 +44,15 @@ Two paths — pick the declarative one whenever it fits.
 an autostart entry, no Dockerfile at all:
 
 ```yaml
-name: ubuntu-libreoffice
+name: libreoffice
 layer: apps
 version: "1.0.0"
-from: ubuntu-xfce
+from: core-ubuntu-noble-xfce
 recipe:
   apt: [libreoffice, libreoffice-gtk3]
   autostart: libreoffice
 variants:
-  - name: ubuntu-libreoffice
+  - name: libreoffice
     smoke: { vnc: true }
 ```
 

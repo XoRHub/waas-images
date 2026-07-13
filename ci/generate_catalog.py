@@ -86,6 +86,10 @@ def catalog(
     previous = previous or {}
     images = []
     for name, v in sorted(variants.items()):
+        # core-*: internal build parents only (base + the apps/* desktop
+        # parent) — never picked by an end user, never published here.
+        if name.startswith("core-"):
+            continue
         # <registry>/<variant>:<version> — the exact ref the merge
         # job's mirror step pushed (ci/merge_image.sh:
         # ${CI_PUBLIC_REGISTRY_IMAGE}/${IMG_NAME}) — IF that publish
@@ -107,16 +111,14 @@ def catalog(
         entry = {
             "image": ref,
             # Workspace OS family, NOT the build distro (v["os"] is
-            # ubuntu-24.04/debian-13/fedora-43 — a different notion).
+            # ubuntu-noble/debian-13/fedora-43 — a different notion).
             "os": "linux",
             "app": name,
             "version": version,
         }
         if v["icon"]:
             entry["icon"] = v["icon"]
-        if v.get("display_name"):
-            entry["displayName"] = v["display_name"]
-        elif v["description"]:
+        if v["description"]:
             entry["displayName"] = textwrap.shorten(
                 v["description"], width=80, placeholder="…")
         images.append(entry)

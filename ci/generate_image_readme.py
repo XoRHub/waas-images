@@ -42,7 +42,7 @@ WAAS_URL = "https://github.com/XoRHub/waas"
 
 
 def render(v: dict) -> str:
-    title = v.get("display_name") or v["description"] or v["name"]
+    title = v["description"] or v["name"]
     lines = [
         f"# {title}",
         "",
@@ -83,6 +83,13 @@ def render(v: dict) -> str:
     return "\n".join(lines)
 
 
+def published_variants(variants: dict[str, dict]) -> dict[str, dict]:
+    """core-*: internal build parents only, never picked by an end user
+    — no public per-image doc makes sense for them (mirrors the same
+    skip in ci/generate_catalog.py)."""
+    return {n: v for n, v in variants.items() if not n.startswith("core-")}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", default=str(gp.ROOT / "docs" / "images"))
@@ -93,9 +100,10 @@ def main() -> None:
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    for name, v in sorted(variants.items()):
+    published = published_variants(variants)
+    for name, v in sorted(published.items()):
         (out_dir / f"{name}.md").write_text(render(v))
-    print(f"generated {len(variants)} file(s) under {out_dir}/")
+    print(f"generated {len(published)} file(s) under {out_dir}/")
 
 
 if __name__ == "__main__":

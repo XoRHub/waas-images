@@ -5,14 +5,14 @@
 # therefore launches with --no-sandbox: the pod (non-root, no caps,
 # read-only, seccomp, NetworkPolicy) is the sandbox boundary, the exact
 # trade-off already documented for Firefox in HARDENING.md § Known gaps.
-name: ubuntu-chrome
+name: chrome
 layer: apps
 description: >
   XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint
   pinned), auto-started via XDG autostart; the pod is the sandbox
   boundary (inner Chrome sandbox disabled, Firefox-gap precedent).
-version: "1.0.1"
-from: ubuntu-desktop
+version: "1.0.0"
+from: core-ubuntu-noble-xfce
 icon: google-chrome
 
 # Google publishes no arm64 Chrome deb — amd64 only, like the catalog's
@@ -30,6 +30,6 @@ recipe:
     pin: "google-chrome*"
 
 variants:
-  - name: ubuntu-chrome
+  - name: chrome
     smoke:
       vnc: true

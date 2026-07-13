@@ -64,7 +64,7 @@ make lint                 # hadolint + shellcheck over Dockerfiles/*.sh
 ```
 
 `IMAGE` values are the `Makefile`'s hardcoded local mirror of each
-manifest (`ubuntu-base-vnc`, `ubuntu-xfce`, `ubuntu-firefox`, …) — check
+manifest (`core-ubuntu-noble`, `ubuntu-desktop-noble`, `firefox`, …) — check
 the `Makefile` before assuming a new image is wired into it locally;
 CI itself always drives off the manifests, not the Makefile.
 

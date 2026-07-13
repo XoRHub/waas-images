@@ -31,6 +31,11 @@ ARG WAAS_GID=1000
 # Bake xrdp into the image (1) or ship VNC-only (0). Runtime toggles
 # (WAAS_VNC_ENABLED / WAAS_RDP_ENABLED) can only enable what is installed.
 ARG INSTALL_RDP=0
+# Bake an unprivileged, publickey-only sshd into the image (1) or ship
+# without one at all (0, default) — same opt-in-but-off-by-default
+# contract as base/ubuntu/Dockerfile; see rootfs/etc/waas/entrypoint.d/
+# 50-sshd.sh.
+ARG INSTALL_SSH=0
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV LANG=C.UTF-8 \
@@ -67,6 +72,17 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         ln -s /tmp/waas/xrdp/cert.pem    /etc/xrdp/cert.pem && \
         ln -s /tmp/waas/xrdp/key.pem     /etc/xrdp/key.pem; \
     fi && \
+    if [ "${INSTALL_SSH}" = "1" ]; then \
+        dnf install -y --setopt=install_weak_deps=False openssh-server && \
+        # openssh-server's postinst bakes host keys; drop them so the
+        # image carries none — 50-sshd.sh (re)generates them at boot (or
+        # takes a mounted WAAS_SSH_HOST_KEY_FILE), and baked keys trip
+        # trivy's secret scanner (HIGH: AsymmetricPrivateKey) for no
+        # benefit (same rationale as apps/dev-ssh/Dockerfile).
+        rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub && \
+        # sshd refuses to start without its privilege-separation directory.
+        mkdir -p /run/sshd; \
+    fi && \
     # dbus-launch (session bus) wants a machine id; bake one so it works
     # on a read-only rootfs. Identical across containers — acceptable, it
     # is not used as an identity by anything we run.
@@ -97,9 +113,12 @@ RUN chmod 0755 /usr/local/bin/waas-entrypoint /usr/local/bin/waas-session /usr/l
 # ---- Runtime contract (consumed by the Workspace operator) ----
 # Port 5901: RFB/VNC (guacd protocol "vnc"). TCP-open == session ready.
 # Port 3389: RDP via xrdp, only when INSTALL_RDP=1 and WAAS_RDP_ENABLED=1.
+# Port 2222: SSH, only when INSTALL_SSH=1 and WAAS_SSH_ENABLED=1 — off by
+#            default even when installed (see rootfs/etc/waas/
+#            entrypoint.d/50-sshd.sh).
 # Port 4713: PulseAudio native protocol for guacd's VNC audio stream,
 #            unless WAAS_AUDIO_ENABLED=0.
-EXPOSE 5901 3389 4713
+EXPOSE 5901 3389 2222 4713
 
 ENV WAAS_USER=${WAAS_USER} \
     HOME=/home/waas_user \
@@ -111,6 +130,11 @@ ENV WAAS_USER=${WAAS_USER} \
     # password. Only an explicit RDP_AUTH_ENABLED=false at runtime — never
     # a build — turns it off (see waas-entrypoint / README).
     RDP_AUTH_ENABLED=true \
+    # Always off regardless of INSTALL_SSH — no auto-generated fallback
+    # credential exists for SSH the way VNC_PW covers VNC/RDP, so a
+    # template must opt in explicitly with WAAS_SSH_AUTHORIZED_KEYS(_FILE).
+    WAAS_SSH_ENABLED=0 \
+    WAAS_SSH_PORT=2222 \
     WAAS_AUDIO_ENABLED=1 \
     VNC_RESOLUTION=1920x1080 \
     VNC_COL_DEPTH=24 \

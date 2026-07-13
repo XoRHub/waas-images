@@ -14,21 +14,20 @@ CFG = {
 }
 
 BASE_MANIFEST = {
-    "name": "ubuntu-xfce",
+    "name": "ubuntu-desktop",
     "layer": "desktop",
     "context": "desktop/xfce",
     "dockerfile": None,
-    "description": "XFCE desktop, VNC + RDP, derived from the apt base-rdp image.",
-    "version": "1.2.0",
+    "description": "XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.",
+    "version": "1.0.0",
     "icon": "ubuntu-linux",
     "variants": [
         {
-            "name": "ubuntu-xfce",
+            "name": "ubuntu-desktop-noble",
             "smoke": {"vnc": True, "rdp": True, "ssh": True, "audio": True},
         },
         {
-            "name": "ubuntu-desktop",
-            "displayName": "Ubuntu Desktop (VNC only)",
+            "name": "core-ubuntu-noble-xfce",
             "smoke": {"vnc": True, "rdp": False, "audio": True},
         },
     ],
@@ -38,11 +37,8 @@ BASE_MANIFEST = {
 class RenderFormat(unittest.TestCase):
     def setUp(self):
         variants = gp.flatten_variants([BASE_MANIFEST], CFG)
-        self.full = variants["ubuntu-xfce"]
-        self.vnc_only = variants["ubuntu-desktop"]
-
-    def test_title_uses_display_name_when_set(self):
-        self.assertTrue(gir.render(self.vnc_only).startswith("# Ubuntu Desktop (VNC only)"))
+        self.full = variants["ubuntu-desktop-noble"]
+        self.vnc_only = variants["core-ubuntu-noble-xfce"]
 
     def test_title_falls_back_to_description(self):
         self.assertTrue(gir.render(self.full).startswith(f"# {self.full['description']}"))
@@ -66,6 +62,14 @@ class RenderFormat(unittest.TestCase):
         out = gir.render(self.full)
         self.assertIn(gir.PROJECT_URL, out)
         self.assertIn(gir.WAAS_URL, out)
+
+
+class PublishedVariants(unittest.TestCase):
+    def test_core_prefixed_variants_excluded(self):
+        variants = gp.flatten_variants([BASE_MANIFEST], CFG)
+        published = gir.published_variants(variants)
+        self.assertIn("ubuntu-desktop-noble", published)
+        self.assertNotIn("core-ubuntu-noble-xfce", published)
 
 
 if __name__ == "__main__":

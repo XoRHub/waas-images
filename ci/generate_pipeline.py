@@ -102,25 +102,13 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 "dockerfile": m["dockerfile"],
                 "os": os_key,
                 "layer": m.get("layer", m["context"].split("/", 1)[0]),
-                # Root + per-variant override (like icon:/displayName:):
-                # most manifests share one description across variants,
-                # but a variant whose capabilities genuinely differ from
-                # its siblings (e.g. ubuntu-desktop vs. ubuntu-xfce) can
-                # set its own.
-                "description": " ".join(
-                    str(v.get("description", m.get("description", ""))).split()
-                ),
+                "description": " ".join(str(m.get("description", "")).split()),
                 "profile": profile,
                 "version": str(m["version"]),
                 # Catalog-only key (ci/generate_catalog.py): dashboard-icons
                 # slug, never baked into the image. Root + per-variant
                 # override, like smoke:/buildArgs:.
                 "icon": v.get("icon", m.get("icon", "")),
-                # Catalog/docs-only key: friendly name overriding the
-                # default truncated-description derivation (ci/
-                # generate_catalog.py, ci/generate_image_readme.py).
-                # Root + per-variant override, same convention as icon:.
-                "display_name": v.get("displayName", m.get("displayName", "")),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
                 "build_args": build_args,

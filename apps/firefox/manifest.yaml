@@ -1,8 +1,8 @@
-name: ubuntu-firefox
+name: firefox
 layer: apps
 description: XFCE desktop with managed, policy-hardened Firefox.
-version: "1.0.4"
-from: ubuntu-desktop
+version: "1.0.0"
+from: core-ubuntu-noble-xfce
 icon: firefox
 
 # packages.mozilla.org has historically been amd64-first; arm64 stays off
@@ -10,7 +10,7 @@ icon: firefox
 archs: [linux/amd64]
 
 variants:
-  - name: ubuntu-firefox
+  - name: firefox
     smoke:
       vnc: true
       rdp: false

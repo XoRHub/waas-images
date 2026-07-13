@@ -1,6 +1,6 @@
-# XFCE desktop, VNC + RDP, derived from the apt base-rdp image.
+# XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
 
-Image `debian-xfce` — layer `desktop`, OS `debian-13`, version `1.2.0`.
+Image `ubuntu-desktop-noble` — layer `desktop`, OS `ubuntu-noble`, version `1.0.0`.
 
 Built by [waas-images](https://github.com/XoRHub/waas-images), deployed by the [WaaS platform](https://github.com/XoRHub/waas).
 

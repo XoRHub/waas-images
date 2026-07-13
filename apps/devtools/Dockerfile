@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
-# waas ubuntu-devtools — XFCE work desktop with VS Code and a dev toolchain.
+# waas devtools — XFCE work desktop with VS Code and a dev toolchain.
 #
 # Fills the governance-catalog entry "Dev Tools (VS Code, toolchains)"
 # (allowedGroups nymphe:dev). VS Code comes from the Microsoft APT repo
 # (packages.microsoft.com/repos/code), pinned by its signing-key
 # fingerprint and an apt preference — the exact pattern proven on
-# apps/firefox. The toolchain mirrors apps/dev-ssh.
+# apps/firefox.
 #
 # Hand-written on purpose (not a recipe:): third-party repo + composed
 # toolchain + the INSTALL_SUDO dev-variant hook exceed the apt-simple

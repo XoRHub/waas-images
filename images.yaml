@@ -10,8 +10,12 @@
 # via `os:`; the buildArgs feed the parameterized FROM of the apt base
 # Dockerfile (base/ubuntu — historical name kept, it builds Debian too;
 # Fedora, dnf-based, has its own tree under base/fedora).
+#
+# Key convention: Ubuntu uses its codename (image names are
+# core-ubuntu-noble, not core-ubuntu-24.04); Debian/Fedora use their
+# numeric version (no widely-recognized codename convention there).
 os:
-  ubuntu-24.04:
+  ubuntu-noble:
     buildArgs:
       OS_BASE_IMAGE: "ubuntu:24.04"
   debian-13:
@@ -22,7 +26,7 @@ os:
       OS_BASE_IMAGE: "fedora:43"
 
 defaults:
-  os: ubuntu-24.04
+  os: ubuntu-noble
   # amd64 mandatory (worker), arm64 for the Turing Pi control-plane-adjacent
   # nodes. Manifests can restrict (see apps/firefox).
   archs: [linux/amd64, linux/arm64]

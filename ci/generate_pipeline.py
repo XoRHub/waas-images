@@ -34,10 +34,12 @@ import recipe_compiler  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 LAYER_DIRS = ("base", "desktop", "apps")
-# Stable GitHub URL prefix for the per-image READMEs ci/generate_image_
-# readme.py commits under docs/images/ — the source for the
-# org.opencontainers.image.documentation label/annotation.
-DOCS_BASE_URL = "https://github.com/XoRHub/waas-images/blob/main/docs/images"
+# org.opencontainers.image.documentation source: the project README
+# (WAAS_* env vars, ports, protocols — the durable usage contract).
+# Per-image docs (ci/generate_image_readme.py) are generated fresh each
+# CI run into the job summary and never committed, so they have no
+# stable URL to link from an image label.
+DOCUMENTATION_URL = "https://github.com/XoRHub/waas-images/blob/main/README.md"
 # GitLab runner tag per build platform. An arch without a native runner
 # fleet must not appear in a manifest.
 RUNNER_TAGS = {"linux/amd64": "amd", "linux/arm64": "arm"}
@@ -163,10 +165,7 @@ def build_vars(v: dict, variants: dict[str, dict]) -> dict:
         "IMG_FROM_REF": (
             f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
         ),
-        # org.opencontainers.image.documentation source: the generated
-        # per-image README (ci/generate_image_readme.py), always at this
-        # stable path once committed — never guessed, always this repo.
-        "IMG_DOCUMENTATION": f"{DOCS_BASE_URL}/{v['name']}.md",
+        "IMG_DOCUMENTATION": DOCUMENTATION_URL,
         "SMOKE_PROFILE": v["profile"],
         "SMOKE_VNC": "1" if v["smoke"].get("vnc") else "0",
         "SMOKE_RDP": "1" if v["smoke"].get("rdp") else "0",
@@ -196,7 +195,7 @@ def merge_vars(v: dict, variants: dict[str, dict]) -> dict:
         "IMG_FROM_REF": (
             f"{v['from']}:{variants[v['from']]['version']}" if v["from"] else ""
         ),
-        "IMG_DOCUMENTATION": f"{DOCS_BASE_URL}/{v['name']}.md",
+        "IMG_DOCUMENTATION": DOCUMENTATION_URL,
     }
 
 

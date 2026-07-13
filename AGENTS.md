@@ -26,7 +26,12 @@ manifest/recipe instead and regenerate:
 | `github-matrices.json` | `python3 ci/generate_pipeline.py` |
 | `*/Dockerfile.generated` | `make recipes` (only for directories with a `recipe:` block) |
 | `catalog-waas-images.yaml`, `catalog-kasmweb.yaml` | `ci/generate_catalog.py` / `ci/generate_kasm_catalog.py` |
-| `docs/images/*.md` | `ci/generate_image_readme.py` (`make image-readmes`) — committed like the catalogs above, not gitignored: it must live at a stable URL for the `org.opencontainers.image.documentation` label |
+
+Per-image docs (`ci/generate_image_readme.py`, `make image-docs`) are
+**not** in this table — unlike the artifacts above, they are never
+committed at all: CI writes them to the run's `$GITHUB_STEP_SUMMARY`
+only (see README § "Per-image docs"), regenerated fresh every run so
+there is nothing to keep in sync as the image count grows.
 
 The actual source lives in `images.yaml` (global matrix/config) and one
 `manifest.yaml` per image directory under `base/`, `desktop/`, `apps/`.

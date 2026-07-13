@@ -5,10 +5,19 @@
 #   "pyyaml==6.0.2",
 # ]
 # ///
-"""Generate docs/images/<variant>.md — one generated README per
-published image (README § "Per-image README"), pointing at this
-project and at WaaS (the platform that deploys these images) and
-documenting exactly which protocols that image supports.
+"""Render per-image documentation — one section per published image,
+listing exactly which protocols it supports — into the GitHub Actions
+job summary ($GITHUB_STEP_SUMMARY) of the CI run that built it.
+
+Deliberately NOT committed: with the number of images only growing,
+keeping one hand-synced doc file per image (or even one generator
+output per image checked into the repo) is exactly the maintenance
+burden this avoids — regenerated fresh every run from the current
+manifests, so it can never drift, and there is nothing to keep in sync
+between renames/removals and stale committed files. The durable,
+versioned usage contract (WAAS_* env vars, ports, protocols) lives in
+README.md instead, which is what org.opencontainers.image.documentation
+points at (see ci/generate_pipeline.py).
 
 Protocol coverage is driven by each variant's existing
 smoke.rdp/smoke.ssh flags (the same signal CI already trusts to know
@@ -21,14 +30,13 @@ smoke-test RDP-only mode with smoke.vnc: false, even though Xvnc is
 still there).
 
 Reuses generate_pipeline.py's discovery (load_manifests +
-flatten_variants) so the docs can never drift from the build matrix.
-Output is committed (not gitignored): it must live at a stable GitHub
-URL to be linkable from the org.opencontainers.image.documentation
-label/annotation (see ci/build_image.sh, ci/merge_image.sh).
+flatten_variants) so the summary can never drift from the build matrix.
+Outside CI (no $GITHUB_STEP_SUMMARY set, e.g. local `make image-docs`),
+prints to stdout instead.
 """
 from __future__ import annotations
 
-import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -41,10 +49,10 @@ PROJECT_URL = "https://github.com/XoRHub/waas-images"
 WAAS_URL = "https://github.com/XoRHub/waas"
 
 
-def render(v: dict) -> str:
+def render(v: dict, *, heading: str = "#") -> str:
     title = v["description"] or v["name"]
     lines = [
-        f"# {title}",
+        f"{heading} {title}",
         "",
         f"Image `{v['name']}` — layer `{v['layer']}`, OS `{v['os']}`, "
         f"version `{v['version']}`.",
@@ -56,7 +64,7 @@ def render(v: dict) -> str:
         f"Built by [waas-images]({PROJECT_URL}), deployed by the "
         f"[WaaS platform]({WAAS_URL}).",
         "",
-        "## Protocols",
+        f"{heading}# Protocols",
         "",
         "- **VNC** — port `5901`. Required env: `VNC_PW` (session "
         "password; refuses to start without it). Optional: "
@@ -85,25 +93,40 @@ def render(v: dict) -> str:
 
 def published_variants(variants: dict[str, dict]) -> dict[str, dict]:
     """core-*: internal build parents only, never picked by an end user
-    — no public per-image doc makes sense for them (mirrors the same
-    skip in ci/generate_catalog.py)."""
+    — no doc section makes sense for them (mirrors the same skip in
+    ci/generate_catalog.py)."""
     return {n: v for n, v in variants.items() if not n.startswith("core-")}
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", default=str(gp.ROOT / "docs" / "images"))
-    args = parser.parse_args()
+def render_summary(published: dict[str, dict]) -> str:
+    lines = [
+        "# waas-images — image documentation",
+        "",
+        "Generated fresh for this run by `ci/generate_image_readme.py` "
+        "— not committed. See [README.md]"
+        f"({PROJECT_URL}/blob/main/README.md) for the durable usage "
+        "contract (WAAS_* env vars, ports, protocols common to every "
+        "image).",
+        "",
+    ]
+    for _name, v in sorted(published.items()):
+        lines.append(render(v, heading="##"))
+    return "\n".join(lines)
 
+
+def main() -> None:
     cfg = yaml.safe_load((gp.ROOT / "images.yaml").read_text())
     variants = gp.flatten_variants(gp.load_manifests(), cfg)
-
-    out_dir = Path(args.output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
     published = published_variants(variants)
-    for name, v in sorted(published.items()):
-        (out_dir / f"{name}.md").write_text(render(v))
-    print(f"generated {len(published)} file(s) under {out_dir}/")
+    summary = render_summary(published)
+
+    step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary:
+        with open(step_summary, "a", encoding="utf-8") as f:
+            f.write(summary)
+        print(f"appended {len(published)} image doc section(s) to GITHUB_STEP_SUMMARY")
+    else:
+        print(summary)
 
 
 if __name__ == "__main__":

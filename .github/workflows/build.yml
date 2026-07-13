@@ -533,6 +533,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v8.3.2
+      # Manifest-only (no registry needed) — runs regardless of the
+      # registry-dependent steps below. Never committed: the script
+      # itself detects $GITHUB_STEP_SUMMARY (set by the runner for
+      # every step) and appends there directly (README § "Per-image
+      # docs") — no shell redirect, that would just capture the
+      # script's short stdout confirmation instead of its real output.
+      - name: Generate per-image docs (job summary)
+        run: uv run ci/generate_image_readme.py
       - name: docker login (docker.io, for the per-image publish check)
         run: docker login -u "${CI_PUBLIC_REGISTRY_USER}" -p "${CI_PUBLIC_REGISTRY_PASSWORD}" "${CI_PUBLIC_REGISTRY}"
       - name: Generate catalog-waas-images.yaml

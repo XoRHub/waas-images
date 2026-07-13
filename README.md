@@ -23,7 +23,6 @@ ci/                 pipeline generator + recipe compiler, build/smoke scripts
 .github/workflows/  GitHub Actions pipeline (canonical forge)
 examples/           WorkspaceTemplate + NetworkPolicy
 HARDENING.md        verifiable hardening checklist + threat model
-docs/images/        generated per-image README (README § Per-image README)
 ```
 
 `core-*` images (base layer, plus the VNC-only `core-ubuntu-noble-xfce`
@@ -190,7 +189,7 @@ is maintained by hand; these keys are its future source of truth).
 | `org.opencontainers.image.revision` | full git commit of the build |
 | `org.opencontainers.image.created` | build timestamp (UTC, RFC 3339) |
 | `org.opencontainers.image.source` | URL of the forge that ran the build (`CI_PROJECT_URL`, exported by the GitHub workflow) |
-| `org.opencontainers.image.documentation` | URL of the generated per-image README (`docs/images/<variant>.md`, see § Per-image README) |
+| `org.opencontainers.image.documentation` | URL of this README (the durable usage contract — WAAS_* env vars, ports, protocols; see § "Per-image docs" for the per-run, non-committed detail) |
 | `org.opencontainers.image.licenses` | `Apache-2.0` |
 | `org.opencontainers.image.vendor` | `XorHub` |
 | `io.xorhub.waas.os` | resolved `os:` key (`ubuntu-noble`, `debian-13`, `fedora-43`) |
@@ -281,20 +280,30 @@ Design notes:
 - Both publish jobs are best-effort (`continue-on-error`): the catalogs
   are secondary deliverables and must never block image publication.
 
-## Per-image README
+## Per-image docs
 
 `ci/generate_image_readme.py` (reuses `generate_pipeline.py`'s manifest
 discovery, same pattern as `ci/generate_catalog.py`) renders one
-`docs/images/<variant-name>.md` per published image, linking this
-project and [WaaS](https://github.com/XoRHub/waas) — the platform that
-deploys these images — and listing exactly which protocols that image
-supports (VNC always; RDP/SSH only when that variant's `smoke.rdp`/
-`smoke.ssh` say so) with the env vars to enable each. Generated files
-are committed straight to `main`, same treatment as the two picker
-catalogs (§ Image catalogs) — they must live at a stable GitHub URL to
-be linkable from the `org.opencontainers.image.documentation` label/
-annotation (§ Image metadata). Regenerate with `make image-readmes`
-after any manifest change.
+section per published image — linking this project and
+[WaaS](https://github.com/XoRHub/waas) (the platform that deploys these
+images) and listing exactly which protocols that image supports (VNC
+always; RDP/SSH only when that variant's `smoke.rdp`/`smoke.ssh` say
+so) with the env vars to enable each.
+
+Deliberately **not committed**: it runs in the `catalog` job of every
+default-branch build and appends its output to that run's
+`$GITHUB_STEP_SUMMARY` — visible in the Actions run UI only, gone with
+the run. With the image count only growing, keeping one synced doc
+file per image (committed, needing cleanup on every rename/removal) is
+exactly the maintenance burden this avoids: regenerated fresh from the
+current manifests every run, so it can never drift and there is
+nothing to keep in sync. The durable, versioned usage contract (WAAS_*
+env vars, ports, protocols common to every image) lives in this README
+instead — what `org.opencontainers.image.documentation` actually
+points at (§ Image metadata).
+
+Local dev convenience: `make image-docs` prints the same output to
+stdout (no `$GITHUB_STEP_SUMMARY` outside CI).
 
 ## Adding an app image
 

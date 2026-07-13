@@ -6,7 +6,8 @@
 #   make smoke IMAGE=core-ubuntu-noble
 #   make lint
 #   make catalogs    # regenerate + schema-validate both picker catalogs
-#   make image-readmes  # regenerate docs/images/*.md (org.opencontainers.image.documentation source)
+#   make image-docs  # print per-image docs locally (CI writes these to
+#                     # the job summary instead — never committed)
 #
 # Python tooling runs through uv: each ci/*.py script declares its own
 # pinned dependencies inline (PEP 723 `# /// script` block), so uv is
@@ -65,7 +66,7 @@ else ifeq ($(IMAGE),chrome)
   ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble-xfce:dev
 endif
 
-.PHONY: build run smoke lint clean recipes catalogs image-readmes
+.PHONY: build run smoke lint clean recipes catalogs image-docs
 
 # Materialise Dockerfile.generated for every recipe: manifest (gitignored;
 # CI regenerates them in the generate stage).
@@ -83,9 +84,11 @@ catalogs: recipes
 	uv run ci/generate_kasm_catalog.py
 	uv run ci/validate_catalog.py catalog-waas-images.yaml catalog-kasmweb.yaml
 
-# Regenerate the per-image README committed under docs/images/ (the
-# org.opencontainers.image.documentation label/annotation points there).
-image-readmes: recipes
+# Print per-image docs to stdout (no $GITHUB_STEP_SUMMARY locally — CI
+# appends the same output there instead; see the catalog job). Nothing
+# here is committed: org.opencontainers.image.documentation points at
+# README.md, not at this output.
+image-docs: recipes
 	uv run ci/generate_image_readme.py
 
 build: recipes

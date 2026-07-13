@@ -63,6 +63,11 @@ class RenderFormat(unittest.TestCase):
         self.assertIn(gir.PROJECT_URL, out)
         self.assertIn(gir.WAAS_URL, out)
 
+    def test_heading_level_is_configurable(self):
+        out = gir.render(self.full, heading="##")
+        self.assertTrue(out.startswith(f"## {self.full['description']}"))
+        self.assertIn("### Protocols", out)
+
 
 class PublishedVariants(unittest.TestCase):
     def test_core_prefixed_variants_excluded(self):
@@ -70,6 +75,19 @@ class PublishedVariants(unittest.TestCase):
         published = gir.published_variants(variants)
         self.assertIn("ubuntu-desktop-noble", published)
         self.assertNotIn("core-ubuntu-noble-xfce", published)
+
+
+class RenderSummary(unittest.TestCase):
+    def test_includes_every_published_variant(self):
+        variants = gp.flatten_variants([BASE_MANIFEST], CFG)
+        published = gir.published_variants(variants)
+        summary = gir.render_summary(published)
+        self.assertIn("ubuntu-desktop-noble", summary)
+        self.assertNotIn("core-ubuntu-noble-xfce", summary)
+
+    def test_links_readme_not_a_generated_file(self):
+        summary = gir.render_summary({})
+        self.assertIn("README.md", summary)
 
 
 if __name__ == "__main__":

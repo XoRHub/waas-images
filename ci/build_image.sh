@@ -124,12 +124,16 @@ if [ -f "${IMG_CONTEXT}/.trivyignore" ]; then
 fi
 
 log "trivy scan (gate: ${TRIVY_SEVERITY:-HIGH,CRITICAL})"
+# ghcr.io mirror, not aquasec/trivy (Docker Hub): this pull runs on
+# EVERY matrix leg, so on docker.io it alone would burn ~30 of the
+# 200-pulls/6h Docker Hub budget per full pipeline run. ghcr.io has no
+# pull rate limit for public images.
 # shellcheck disable=SC2086
 docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v trivy-cache:/root/.cache/trivy \
     ${TRIVY_MOUNT_FLAGS} \
-    aquasec/trivy:0.72.0 image \
+    ghcr.io/aquasecurity/trivy:0.72.0 image \
     --severity "${TRIVY_SEVERITY:-HIGH,CRITICAL}" \
     --ignore-unfixed="${TRIVY_IGNORE_UNFIXED:-true}" \
     --exit-code "${TRIVY_EXIT_CODE:-1}" \

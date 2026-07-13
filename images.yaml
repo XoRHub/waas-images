@@ -37,7 +37,12 @@ defaults:
     WAAS_GID: "1000"
 
 scan:
-  # Trivy gate: fail the pipeline on these severities. Override per
-  # pipeline with the TRIVY_SEVERITY / TRIVY_EXIT_CODE CI variables.
+  # Trivy gate: fail the pipeline on these severities. This is the
+  # actual source ci/scan_image.sh runs with — ci/generate_pipeline.py
+  # reads it into github-matrices.json's "scan" key, the setup job
+  # re-exposes it as outputs, and every scan-N job sets TRIVY_SEVERITY/
+  # TRIVY_IGNORE_UNFIXED from those before calling ci/scan_image.sh.
+  # TRIVY_EXIT_CODE has no config here (still CI-variable-only, see
+  # that script) since there's no per-pipeline reason to ever change it.
   severity: HIGH,CRITICAL
   ignoreUnfixed: true

@@ -6,6 +6,15 @@
 # pipeline, which never lists this job in its `needs:`. Driven by IMG_*
 # variables emitted by ci/generate_pipeline.py (same matrix as the
 # layer-N build job it follows).
+#
+# TRIVY_SEVERITY / TRIVY_IGNORE_UNFIXED: sourced from images.yaml's
+# scan: block, not chosen here — ci/generate_pipeline.py puts them in
+# github-matrices.json's "scan" key, the workflow's setup job re-exposes
+# them as outputs, and every scan-N job env-injects them before calling
+# this script. The ${VAR:-default} fallbacks below only matter for a
+# standalone/local invocation outside that pipeline. TRIVY_EXIT_CODE has
+# no images.yaml equivalent — it stays a plain CI-variable override,
+# there's no per-pipeline reason to change it.
 set -eu
 
 : "${IMG_NAME:?}" "${IMG_CONTEXT:?}" "${IMG_VERSION:?}" "${IMG_ARCH:?}"

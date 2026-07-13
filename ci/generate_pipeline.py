@@ -209,7 +209,7 @@ GH_RUNNERS = {"linux/amd64": "ubuntu-24.04", "linux/arm64": "ubuntu-24.04-arm"}
 GH_MAX_DEPTH = 2
 
 
-def emit_github(variants: dict[str, dict], strategy: str) -> str:
+def emit_github(variants: dict[str, dict], strategy: str, scan_cfg: dict) -> str:
     """Per-layer-depth build/merge matrices consumed by the committed
     .github/workflows/build.yml via fromJSON. The workflow skeleton is
     static; only these matrices vary."""
@@ -222,7 +222,7 @@ def emit_github(variants: dict[str, dict], strategy: str) -> str:
             "there (a ~10-line diff) and bump GH_MAX_DEPTH"
         )
 
-    matrices: dict[str, list] = {}
+    matrices: dict[str, object] = {}
     for d in range(GH_MAX_DEPTH + 1):
         matrices[f"layer{d}"] = []
         matrices[f"merge{d}"] = []
@@ -235,6 +235,14 @@ def emit_github(variants: dict[str, dict], strategy: str) -> str:
             matrices[f"layer{d}"].append(
                 {**common, "IMG_ARCH": arch, "runner": runner})
         matrices[f"merge{d}"].append(merge_vars(v, variants))
+    # Global (not per-image) trivy gate — the single source of truth is
+    # images.yaml's scan: block; the setup job re-exposes this as job
+    # outputs so every scan-N job (ci/scan_image.sh) reads the same
+    # values instead of each guessing its own default.
+    matrices["scan"] = {
+        "severity": scan_cfg.get("severity", "HIGH,CRITICAL"),
+        "ignoreUnfixed": scan_cfg.get("ignoreUnfixed", True),
+    }
     return json.dumps(matrices)
 
 
@@ -252,7 +260,7 @@ def main() -> None:
     variants = flatten_variants(load_manifests(), cfg)
     validate_archs(variants)
     out = ROOT / "github-matrices.json"
-    out.write_text(emit_github(variants, strategy))
+    out.write_text(emit_github(variants, strategy, cfg.get("scan", {})))
     print(f"generated {out.name} with {len(variants)} image(s), strategy={strategy}")
 
 

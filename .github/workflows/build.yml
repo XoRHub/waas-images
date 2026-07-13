@@ -136,6 +136,12 @@ jobs:
       merge1: ${{ steps.matrices.outputs.merge1 }}
       merge2: ${{ steps.matrices.outputs.merge2 }}
       short_sha: ${{ steps.matrices.outputs.short_sha }}
+      # Global trivy gate, sourced from images.yaml's scan: block (the
+      # single source of truth — see ci/generate_pipeline.py) and fanned
+      # out to every scan-N job below, instead of each one guessing its
+      # own default.
+      scan_severity: ${{ steps.matrices.outputs.scan_severity }}
+      scan_ignore_unfixed: ${{ steps.matrices.outputs.scan_ignore_unfixed }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v8.3.2
@@ -146,6 +152,8 @@ jobs:
           for key in layer0 layer1 layer2 merge0 merge1 merge2; do
             echo "${key}=$(jq -c ".${key}" github-matrices.json)" >> "$GITHUB_OUTPUT"
           done
+          echo "scan_severity=$(jq -r '.scan.severity' github-matrices.json)" >> "$GITHUB_OUTPUT"
+          echo "scan_ignore_unfixed=$(jq -r '.scan.ignoreUnfixed' github-matrices.json)" >> "$GITHUB_OUTPUT"
           echo "short_sha=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
 
   layer-0:
@@ -210,6 +218,8 @@ jobs:
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
+      TRIVY_SEVERITY: ${{ needs.setup.outputs.scan_severity }}
+      TRIVY_IGNORE_UNFIXED: ${{ needs.setup.outputs.scan_ignore_unfixed }}
     steps:
       - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
@@ -326,6 +336,8 @@ jobs:
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
+      TRIVY_SEVERITY: ${{ needs.setup.outputs.scan_severity }}
+      TRIVY_IGNORE_UNFIXED: ${{ needs.setup.outputs.scan_ignore_unfixed }}
     steps:
       - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
@@ -442,6 +454,8 @@ jobs:
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
+      TRIVY_SEVERITY: ${{ needs.setup.outputs.scan_severity }}
+      TRIVY_IGNORE_UNFIXED: ${{ needs.setup.outputs.scan_ignore_unfixed }}
     steps:
       - uses: actions/checkout@v7
       - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)

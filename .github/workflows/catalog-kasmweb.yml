@@ -33,7 +33,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - name: Generate catalog-kasmweb.yaml
         run: |
           uv run ci/generate_kasm_catalog.py

@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       - name: hadolint
@@ -93,7 +93,7 @@ jobs:
       registry_image: ${{ steps.matrices.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - name: Generate matrices
         id: matrices
         run: |
@@ -137,7 +137,7 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
@@ -198,7 +198,7 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
@@ -259,7 +259,7 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       - name: Build, smoke, scan, push
@@ -316,7 +316,7 @@ jobs:
       CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - name: Generate catalog-waas-images.yaml
         run: |
           uv run ci/generate_catalog.py

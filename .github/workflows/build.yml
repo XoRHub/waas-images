@@ -13,8 +13,16 @@
 # GitLab): jobs export the CI_* variable names the scripts already
 # read. Differences vs GitLab, both deliberate:
 #   registry  build/merge happen entirely on GHCR (CI_REGISTRY_IMAGE,
-#             ghcr.io/<owner>/<repo>) — CI-internal, no pull limit,
-#             GITHUB_TOKEN pushes/pulls it without a PAT. On the
+#             ghcr.io/<owner>/<repo>, lowercased and computed by each
+#             job itself via $GITHUB_ENV — NOT a setup-job output: a
+#             job *output* gets silently blanked by GitHub if its value
+#             contains any substring matching a registered secret
+#             ("Skip output '...' since it may contain secret"), and
+#             DOCKER_HUB_USERNAME matching part of the repo/org name is
+#             an entirely plausible collision. $GITHUB_ENV never leaves
+#             the job, so it isn't subject to that check) — CI-internal,
+#             no pull limit, GITHUB_TOKEN pushes/pulls it without a
+#             PAT. On the
 #             default branch, ci/merge_image.sh mirrors the finished
 #             <version> manifest list, once, to the PUBLIC registry
 #             (CI_PUBLIC_REGISTRY_IMAGE, docker.io/<DOCKER_HUB_USERNAME>)
@@ -119,7 +127,6 @@ jobs:
       merge1: ${{ steps.matrices.outputs.merge1 }}
       merge2: ${{ steps.matrices.outputs.merge2 }}
       short_sha: ${{ steps.matrices.outputs.short_sha }}
-      registry_image: ${{ steps.matrices.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v8.3.2
@@ -131,12 +138,6 @@ jobs:
             echo "${key}=$(jq -c ".${key}" github-matrices.json)" >> "$GITHUB_OUTPUT"
           done
           echo "short_sha=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
-          # OCI repository names must be lowercase; github.repository
-          # preserves the owner/repo casing (XoRHub/waas-images), which
-          # `docker build -t` rejects. Only needed for GHCR
-          # (CI_REGISTRY_IMAGE) — CI_PUBLIC_REGISTRY_IMAGE (docker.io) is
-          # already lowercase by construction (Docker Hub usernames are).
-          echo "registry_image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
   layer-0:
     needs: [lint, setup]
@@ -148,7 +149,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -177,6 +177,8 @@ jobs:
       # (docker/build-push-action does this internally, we don't use it).
       - name: Expose GitHub Actions cache variables
         uses: crazy-max/ghaction-github-runtime@v4.0.0
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Build, smoke, push
         run: sh ci/build_image.sh
 
@@ -195,13 +197,14 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
       - uses: actions/checkout@v4
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Trivy scan
         run: sh ci/scan_image.sh
 
@@ -215,11 +218,12 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
         run: sh ci/sbom_image.sh
       - uses: actions/upload-artifact@v4
@@ -238,7 +242,6 @@ jobs:
         include: ${{ fromJSON(needs.setup.outputs.merge0) }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       COSIGN_KEYLESS: "1"
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -250,6 +253,8 @@ jobs:
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
     steps:
       - uses: actions/checkout@v4
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Merge manifest list + sign
         run: sh ci/merge_image.sh
 
@@ -263,7 +268,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -292,6 +296,8 @@ jobs:
       # (docker/build-push-action does this internally, we don't use it).
       - name: Expose GitHub Actions cache variables
         uses: crazy-max/ghaction-github-runtime@v4.0.0
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Build, smoke, push
         run: sh ci/build_image.sh
 
@@ -305,13 +311,14 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
       - uses: actions/checkout@v4
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Trivy scan
         run: sh ci/scan_image.sh
 
@@ -325,11 +332,12 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
         run: sh ci/sbom_image.sh
       - uses: actions/upload-artifact@v4
@@ -348,7 +356,6 @@ jobs:
         include: ${{ fromJSON(needs.setup.outputs.merge1) }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       COSIGN_KEYLESS: "1"
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -360,6 +367,8 @@ jobs:
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
     steps:
       - uses: actions/checkout@v4
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Merge manifest list + sign
         run: sh ci/merge_image.sh
 
@@ -373,7 +382,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -402,6 +410,8 @@ jobs:
       # (docker/build-push-action does this internally, we don't use it).
       - name: Expose GitHub Actions cache variables
         uses: crazy-max/ghaction-github-runtime@v4.0.0
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Build, smoke, push
         run: sh ci/build_image.sh
 
@@ -415,13 +425,14 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_CONTEXT: ${{ matrix.IMG_CONTEXT }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
       - uses: actions/checkout@v4
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Trivy scan
         run: sh ci/scan_image.sh
 
@@ -435,11 +446,12 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
     steps:
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Generate SBOM (cyclonedx)
         run: sh ci/sbom_image.sh
       - uses: actions/upload-artifact@v4
@@ -458,7 +470,6 @@ jobs:
         include: ${{ fromJSON(needs.setup.outputs.merge2) }}
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
       COSIGN_KEYLESS: "1"
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
@@ -470,6 +481,8 @@ jobs:
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
     steps:
       - uses: actions/checkout@v4
+      - name: Compute CI_REGISTRY_IMAGE (GHCR, lowercase)
+        run: echo "CI_REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Merge manifest list + sign
         run: sh ci/merge_image.sh
 

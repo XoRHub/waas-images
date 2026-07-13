@@ -1,4 +1,5 @@
-.claude/
+.claude/*
+!.claude/skills/
 build-pipeline.yml
 Dockerfile.generated
 __pycache__/

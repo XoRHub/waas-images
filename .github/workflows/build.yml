@@ -550,13 +550,9 @@ jobs:
       # catalog is diffable/browsable without hitting Releases. The
       # release asset above stays the source waas-fable actually
       # fetches — this commit is secondary, same continue-on-error
-      # safety net as the rest of this job. checkout@v4 leaves HEAD
-      # detached at github.sha, hence the explicit HEAD:main refspec.
+      # safety net as the rest of this job. Via the Contents API
+      # (ci/commit_catalog.sh), not git push: main requires verified
+      # signatures and a bot's plain git push is never marked Verified
+      # (GH013 — confirmed live, this used to fail every real change).
       - name: Commit catalog-waas-images.yaml to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add catalog-waas-images.yaml
-          git diff --cached --quiet && exit 0
-          git commit -m "chore(catalog): regenerate catalog-waas-images.yaml [skip ci]"
-          git push origin HEAD:main
+        run: sh ci/commit_catalog.sh catalog-waas-images.yaml

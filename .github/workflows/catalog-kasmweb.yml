@@ -10,7 +10,8 @@
 # (falling back to the mapping's knownVersion when Hub is unreachable —
 # the generator is best-effort by design) and republishes the asset on
 # the rolling `catalog` release that build.yml's catalog job also
-# publishes to. It never commits anything.
+# publishes to, plus a best-effort commit of the checked-in copy (see
+# ci/commit_catalog.sh).
 #
 # Caveat: GitHub disables cron-triggered workflows after 60 days without
 # repo activity — re-enable from the Actions tab, or run the
@@ -48,14 +49,9 @@ jobs:
       # Dev convenience: also keep a checked-in copy on main so the
       # catalog is diffable/browsable without hitting Releases. The
       # release asset above stays the source waas-fable actually
-      # fetches — this commit is secondary and best-effort.
-      # checkout@v4 leaves HEAD detached at github.sha, hence the
-      # explicit HEAD:main refspec.
+      # fetches — this commit is secondary and best-effort. Via the
+      # Contents API (ci/commit_catalog.sh), not git push: main
+      # requires verified signatures and a bot's plain git push is
+      # never marked Verified.
       - name: Commit catalog-kasmweb.yaml to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add catalog-kasmweb.yaml
-          git diff --cached --quiet && exit 0
-          git commit -m "chore(catalog): regenerate catalog-kasmweb.yaml [skip ci]"
-          git push origin HEAD:main
+        run: sh ci/commit_catalog.sh catalog-kasmweb.yaml

@@ -7,12 +7,14 @@
 # 400s). <version>-g<sha> is throwaway CI/traceability, never consumed
 # externally, so it stays GHCR-only.
 #
-# On the default branch, when a NEW <version> is published, mirror it
-# to the public Docker Hub registry (single-source registry copy —
-# the pattern Docker's own docs demonstrate for cross-registry copies,
-# unlike the multi-source combine above) and cosign-sign that public
-# copy only: nobody pulls or verifies the GHCR-internal one directly.
-# Driven by IMG_* variables emitted by ci/generate_pipeline.py.
+# On the default branch, when a NEW <version> is published (or when
+# FORCE_MIRROR=1 asks to backfill an already-published one — see
+# below), mirror it to the public Docker Hub registry (single-source
+# registry copy — the pattern Docker's own docs demonstrate for
+# cross-registry copies, unlike the multi-source combine above) and
+# cosign-sign that public copy only: nobody pulls or verifies the
+# GHCR-internal one directly. Driven by IMG_* variables emitted by
+# ci/generate_pipeline.py.
 set -eu
 
 : "${IMG_NAME:?}" "${IMG_VERSION:?}" "${IMG_ARCHS:?}"
@@ -36,12 +38,22 @@ done
 # branch. The clean <version> tag is published from the default branch
 # only, once, and never moved (ArgoCD/templates pin it, or better, the
 # digest). PUBLISH_VERSION gates the Docker Hub mirror below: only a
-# genuinely new release is worth mirroring/signing.
+# genuinely new release is worth mirroring/signing — EXCEPT
+# FORCE_MIRROR=1 (workflow_dispatch's force_mirror input), the escape
+# hatch for backfilling Docker Hub with whatever <version> GHCR already
+# has, without bumping anything: a manifest version essentially never
+# changes for most of these images, so left to itself the mirror would
+# only ever fire for the rare image that gets bumped, and Docker Hub
+# would otherwise never end up with the rest.
 TAG_FLAGS="-t ${IMAGE}:${SHA_TAG}"
 PUBLISH_VERSION=0
 if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
     if docker buildx imagetools inspect "${IMAGE}:${IMG_VERSION}" >/dev/null 2>&1; then
         log "WARNING: ${IMG_NAME}:${IMG_VERSION} already published — bump 'version' in the manifest; pushing only ${SHA_TAG}"
+        if [ "${FORCE_MIRROR:-0}" = "1" ]; then
+            log "FORCE_MIRROR=1: mirroring the already-published ${IMG_VERSION} anyway"
+            PUBLISH_VERSION=1
+        fi
     else
         TAG_FLAGS="${TAG_FLAGS} -t ${IMAGE}:${IMG_VERSION}"
         PUBLISH_VERSION=1

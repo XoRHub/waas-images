@@ -69,6 +69,15 @@ on:
   pull_request:
     paths: *build-relevant-paths
   workflow_dispatch:
+    inputs:
+      force_mirror:
+        description: >-
+          Mirror every image's already-published <version> to Docker
+          Hub even if nothing changed (backfill/re-sync; a manifest
+          version bump mirrors on its own, this is only for the case
+          where GHCR already has it and Docker Hub doesn't).
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -244,6 +253,7 @@ jobs:
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
       COSIGN_KEYLESS: "1"
+      FORCE_MIRROR: ${{ github.event_name == 'workflow_dispatch' && inputs.force_mirror && '1' || '0' }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCHS: ${{ matrix.IMG_ARCHS }}
@@ -359,6 +369,7 @@ jobs:
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
       COSIGN_KEYLESS: "1"
+      FORCE_MIRROR: ${{ github.event_name == 'workflow_dispatch' && inputs.force_mirror && '1' || '0' }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCHS: ${{ matrix.IMG_ARCHS }}
@@ -474,6 +485,7 @@ jobs:
     env:
       CI_COMMIT_SHORT_SHA: ${{ needs.setup.outputs.short_sha }}
       COSIGN_KEYLESS: "1"
+      FORCE_MIRROR: ${{ github.event_name == 'workflow_dispatch' && inputs.force_mirror && '1' || '0' }}
       IMG_NAME: ${{ matrix.IMG_NAME }}
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCHS: ${{ matrix.IMG_ARCHS }}

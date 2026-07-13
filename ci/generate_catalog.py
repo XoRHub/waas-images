@@ -15,6 +15,15 @@ Runs AFTER build+push on the default branch — the immutable <version>
 tags it references must already exist — unlike generate_pipeline.py
 which runs before. `image:version` needs no digest: <version> tags are
 immutable by CI construction (README § Build matrix & tagging).
+
+Every entry is "{registry}/{variant name}:{variant version}" against
+--registry (default $CI_PUBLIC_REGISTRY_IMAGE, docker.io — the registry
+ci/merge_image.sh mirrors the finished <version> manifest list to; see
+build.yml). Build/merge itself happens on GHCR (CI_REGISTRY_IMAGE,
+CI-internal), and the per-arch "-g<sha>-<arch>" build/hand-off tags
+ci/build_image.sh pushes there never enter this list: they are not
+manifest variants, just intermediate artifacts this generator has no
+reference to.
 """
 from __future__ import annotations
 
@@ -37,7 +46,8 @@ def catalog(variants: dict[str, dict], registry: str) -> dict:
     for name, v in sorted(variants.items()):
         entry = {
             # <registry>/<variant>:<version> — the exact ref the merge
-            # job pushed (ci/merge_image.sh: ${CI_REGISTRY_IMAGE}/${IMG_NAME}).
+            # job's mirror step pushed (ci/merge_image.sh:
+            # ${CI_PUBLIC_REGISTRY_IMAGE}/${IMG_NAME}).
             "image": f"{registry}/{name}:{v['version']}",
             # Workspace OS family, NOT the build distro (v["os"] is
             # ubuntu-24.04/debian-13/fedora-43 — a different notion).
@@ -57,13 +67,14 @@ def catalog(variants: dict[str, dict], registry: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--registry", default=os.environ.get("CI_REGISTRY_IMAGE"),
-        help="registry prefix the images were pushed under "
-             "(default: $CI_REGISTRY_IMAGE, same source as ci/build_image.sh)")
+        "--registry", default=os.environ.get("CI_PUBLIC_REGISTRY_IMAGE"),
+        help="public registry prefix the <version> manifest lists were "
+             "mirrored to (default: $CI_PUBLIC_REGISTRY_IMAGE, same "
+             "source as ci/merge_image.sh's mirror step)")
     parser.add_argument("--output", default="catalog-waas-images.yaml")
     args = parser.parse_args()
     if not args.registry:
-        sys.exit("--registry or CI_REGISTRY_IMAGE is required")
+        sys.exit("--registry or CI_PUBLIC_REGISTRY_IMAGE is required")
 
     cfg = yaml.safe_load((gp.ROOT / "images.yaml").read_text())
     variants = gp.flatten_variants(gp.load_manifests(), cfg)

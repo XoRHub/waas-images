@@ -125,7 +125,7 @@ dispatched by `.github/workflows/build.yml`:
 |---|---|
 | Workflow | `.github/workflows/build.yml` (static skeleton + generated matrices) |
 | Runners | `ubuntu-24.04` / `ubuntu-24.04-arm` hosted |
-| Registry | `ghcr.io/<owner>/waas-images/<image>` |
+| Registry | `docker.io/<DOCKER_HUB_USERNAME>/<image>` |
 | Signing | cosign **keyless OIDC** (`COSIGN_KEYLESS=1`, verify the certificate identity) |
 
 A verifying policy-controller must accept this signature mode.

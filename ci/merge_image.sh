@@ -1,14 +1,26 @@
 #!/bin/sh
 # merge_image.sh — assemble the per-arch tags pushed by build_image.sh
-# into the final manifest list <version>-g<sha>, publish the immutable
-# <version> tag from the default branch, and cosign-sign the digest.
+# into the final manifest list <version>-g<sha> on GHCR (CI-internal:
+# same-registry assembly, sources and destination both on
+# CI_REGISTRY_IMAGE — combining `buildx imagetools create` sources
+# across DIFFERENT registries is unreliable, docker/buildx#1660 reports
+# 400s). <version>-g<sha> is throwaway CI/traceability, never consumed
+# externally, so it stays GHCR-only.
+#
+# On the default branch, when a NEW <version> is published, mirror it
+# to the public Docker Hub registry (single-source registry copy —
+# the pattern Docker's own docs demonstrate for cross-registry copies,
+# unlike the multi-source combine above) and cosign-sign that public
+# copy only: nobody pulls or verifies the GHCR-internal one directly.
 # Driven by IMG_* variables emitted by ci/generate_pipeline.py.
 set -eu
 
 : "${IMG_NAME:?}" "${IMG_VERSION:?}" "${IMG_ARCHS:?}"
+: "${CI_PUBLIC_REGISTRY:?}" "${CI_PUBLIC_REGISTRY_USER:?}" "${CI_PUBLIC_REGISTRY_PASSWORD:?}" "${CI_PUBLIC_REGISTRY_IMAGE:?}"
 REGISTRY="${CI_REGISTRY_IMAGE:?}"
 SHA_TAG="${IMG_VERSION}-g${CI_COMMIT_SHORT_SHA:?}"
 IMAGE="${REGISTRY}/${IMG_NAME}"
+PUBLIC_IMAGE="${CI_PUBLIC_REGISTRY_IMAGE}/${IMG_NAME}"
 
 log() { printf '\n=== %s\n' "$*"; }
 
@@ -23,13 +35,16 @@ done
 # Immutable tags: <version>-g<sha> is always unique and pushed from every
 # branch. The clean <version> tag is published from the default branch
 # only, once, and never moved (ArgoCD/templates pin it, or better, the
-# digest).
+# digest). PUBLISH_VERSION gates the Docker Hub mirror below: only a
+# genuinely new release is worth mirroring/signing.
 TAG_FLAGS="-t ${IMAGE}:${SHA_TAG}"
+PUBLISH_VERSION=0
 if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
     if docker buildx imagetools inspect "${IMAGE}:${IMG_VERSION}" >/dev/null 2>&1; then
         log "WARNING: ${IMG_NAME}:${IMG_VERSION} already published — bump 'version' in the manifest; pushing only ${SHA_TAG}"
     else
         TAG_FLAGS="${TAG_FLAGS} -t ${IMAGE}:${IMG_VERSION}"
+        PUBLISH_VERSION=1
     fi
 fi
 
@@ -63,8 +78,18 @@ eval "docker buildx imagetools create ${TAG_FLAGS} ${ANNOTATION_FLAGS} ${SOURCES
 DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${SHA_TAG}" --format '{{.Manifest.Digest}}')
 log "published ${IMAGE}@${DIGEST}"
 
+# ------------------------------------------------------------- mirror
+if [ "${PUBLISH_VERSION}" = "1" ]; then
+    log "docker login (docker.io, mirror)"
+    docker login -u "${CI_PUBLIC_REGISTRY_USER}" -p "${CI_PUBLIC_REGISTRY_PASSWORD}" "${CI_PUBLIC_REGISTRY}"
+    log "mirror ${IMAGE}:${IMG_VERSION} -> ${PUBLIC_IMAGE}:${IMG_VERSION}"
+    docker buildx imagetools create -t "${PUBLIC_IMAGE}:${IMG_VERSION}" "${IMAGE}:${IMG_VERSION}"
+    PUBLIC_DIGEST=$(docker buildx imagetools inspect "${PUBLIC_IMAGE}:${IMG_VERSION}" --format '{{.Manifest.Digest}}')
+    log "published ${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
+fi
+
 # ----------------------------------------------------------------- sign
-# Two modes, both default-branch only (branch tags are throwaway):
+# Two modes:
 #   keyed   — COSIGN_PRIVATE_KEY (+ COSIGN_PASSWORD) as masked CI
 #             variables.
 #   keyless — COSIGN_KEYLESS=1 (set by the GitHub workflow, which also
@@ -73,8 +98,10 @@ log "published ${IMAGE}@${DIGEST}"
 #             env. A verifying policy-controller must check the
 #             certificate identity on keyless-signed images and the
 #             public key on keyed ones.
-# Skipped when neither is configured.
-if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
+# Skipped when neither is configured, or when this run didn't mirror a
+# new <version> (PUBLIC_DIGEST unset): signing the GHCR-internal
+# <sha-tag> would be pointless, nothing ever verifies it directly.
+if [ "${PUBLISH_VERSION}" = "1" ]; then
     if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then
         log "cosign sign (key)"
         # Registry auth via flags: the job's ~/.docker is not visible to a
@@ -82,18 +109,18 @@ if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-main}" ]; then
         docker run --rm -e COSIGN_PRIVATE_KEY -e COSIGN_PASSWORD \
             ghcr.io/sigstore/cosign/cosign:v2.6.3 sign --yes \
             --key env://COSIGN_PRIVATE_KEY \
-            --registry-username "${CI_REGISTRY_USER}" \
-            --registry-password "${CI_REGISTRY_PASSWORD}" \
+            --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
+            --registry-password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
             -a revision="${CI_COMMIT_SHA}" \
-            "${IMAGE}@${DIGEST}"
+            "${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
     elif [ "${COSIGN_KEYLESS:-0}" = "1" ]; then
         log "cosign sign (keyless OIDC)"
         docker run --rm \
             -e ACTIONS_ID_TOKEN_REQUEST_TOKEN -e ACTIONS_ID_TOKEN_REQUEST_URL \
             ghcr.io/sigstore/cosign/cosign:v2.6.3 sign --yes \
-            --registry-username "${CI_REGISTRY_USER}" \
-            --registry-password "${CI_REGISTRY_PASSWORD}" \
+            --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
+            --registry-password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
             -a revision="${CI_COMMIT_SHA}" \
-            "${IMAGE}@${DIGEST}"
+            "${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
     fi
 fi

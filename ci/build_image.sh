@@ -6,27 +6,39 @@
 # by ci/generate_pipeline.py.
 #
 # Flow: native build (--load) -> smoke test against a real container ->
-# trivy gate -> push of the arch tag <version>-g<sha>-<arch>. Nothing
-# reaches the registry (cache aside) before the smoke and scan gates.
+# trivy gate -> push of the arch tag <version>-g<sha>-<arch>.
+#
+# Everything here — the per-arch tag, the build cache, a derived
+# image's BASE_IMAGE parent — stays on CI_REGISTRY_IMAGE (GHCR):
+# CI-internal, never consumed externally, no pull limit and
+# GITHUB_TOKEN can push/pull it without a PAT. CI_PUBLIC_REGISTRY
+# (Docker Hub) is logged into too, but ONLY so the OS base image pulls
+# below (ubuntu/debian/fedora, docker.io/library/*) are authenticated
+# against its 200-pulls/6h budget instead of the anonymous pool shared
+# by every GitHub-hosted runner on the planet — this script never
+# pushes there. ci/merge_image.sh mirrors the finished <version>
+# manifest list to Docker Hub once, after assembly.
 set -eu
 
 : "${IMG_NAME:?}" "${IMG_CONTEXT:?}" "${IMG_VERSION:?}" "${IMG_ARCH:?}"
+: "${CI_PUBLIC_REGISTRY:?}" "${CI_PUBLIC_REGISTRY_USER:?}" "${CI_PUBLIC_REGISTRY_PASSWORD:?}"
 REGISTRY="${CI_REGISTRY_IMAGE:?}"
 ARCH="${IMG_ARCH#linux/}"
 SHA_TAG="${IMG_VERSION}-g${CI_COMMIT_SHORT_SHA:?}"
 ARCH_TAG="${SHA_TAG}-${ARCH}"
 IMAGE="${REGISTRY}/${IMG_NAME}"
-CACHE_REF="${REGISTRY}/cache:${IMG_NAME}-${ARCH}"
 
 log() { printf '\n=== %s\n' "$*"; }
 
 # ---------------------------------------------------------------- setup
 log "docker login + buildx builder"
 docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
-# Container driver: required for the registry cache export. BuildKit
-# pinned; renovate keeps it fresh. Reuse an existing builder (no-op on
-# fresh CI runners; lets a local run pre-provision one, e.g. with
-# host networking against a local registry).
+docker login -u "${CI_PUBLIC_REGISTRY_USER}" -p "${CI_PUBLIC_REGISTRY_PASSWORD}" "${CI_PUBLIC_REGISTRY}"
+# Container driver: required for the GHA cache export (unsupported by
+# the default docker driver). BuildKit pinned; renovate keeps it fresh.
+# Reuse an existing builder (no-op on fresh CI runners; lets a local
+# run pre-provision one, e.g. with host networking against a local
+# registry).
 docker buildx inspect waas >/dev/null 2>&1 || \
     docker buildx create --name waas \
         --driver-opt image=moby/buildkit:v0.31.1 >/dev/null
@@ -84,7 +96,7 @@ buildx_build() {
     docker buildx build \
         --platform "${IMG_ARCH}" \
         --provenance=false \
-        --cache-from "type=registry,ref=${CACHE_REF}" \
+        --cache-from "type=gha,scope=${IMG_NAME}-${ARCH}" \
         ${BUILD_ARG_FLAGS} \
         ${DOCKERFILE_FLAG} \
         --label "org.opencontainers.image.title=${IMG_NAME}" \
@@ -105,7 +117,7 @@ buildx_build() {
 }
 
 log "build (${IMG_ARCH}) ${IMAGE}:${ARCH_TAG}"
-buildx_build --load --cache-to "type=registry,ref=${CACHE_REF},mode=max"
+buildx_build --load --cache-to "type=gha,scope=${IMG_NAME}-${ARCH},mode=max"
 
 # ---------------------------------------------------------------- smoke
 log "smoke test"

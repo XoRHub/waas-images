@@ -12,10 +12,28 @@
 # The heavy lifting stays in ci/*.sh (the portable layer, shared with
 # GitLab): jobs export the CI_* variable names the scripts already
 # read. Differences vs GitLab, both deliberate:
-#   registry  ghcr.io/<owner>/<repo>/<image> (GitLab pushes to its own
-#             registry — two registries while the forges coexist)
+#   registry  build/merge happen entirely on GHCR (CI_REGISTRY_IMAGE,
+#             ghcr.io/<owner>/<repo>) — CI-internal, no pull limit,
+#             GITHUB_TOKEN pushes/pulls it without a PAT. On the
+#             default branch, ci/merge_image.sh mirrors the finished
+#             <version> manifest list, once, to the PUBLIC registry
+#             (CI_PUBLIC_REGISTRY_IMAGE, docker.io/<DOCKER_HUB_USERNAME>)
+#             and cosign-signs that copy — see ci/build_image.sh and
+#             ci/merge_image.sh headers for the full reasoning (GHCR's
+#             no-default-visibility problem, Docker Hub's 200-pulls/6h
+#             budget, why cross-registry `imagetools create` combine is
+#             avoided (docker/buildx#1660) in favour of same-registry
+#             assemble + single-source mirror). GitLab pushes to its
+#             own registry — separate registries while the forges
+#             coexist.
 #   signing   cosign keyless OIDC (COSIGN_KEYLESS=1 + id-token: write)
 #             instead of the COSIGN_PRIVATE_KEY key mode
+#
+# The buildkit layer cache lives in GitHub Actions' own cache service
+# (--cache-to/from type=gha in ci/build_image.sh, exposed by
+# crazy-max/ghaction-github-runtime below — the plain buildx CLI,
+# unlike docker/build-push-action, does not pick up the GitHub cache
+# endpoint on its own).
 #
 # arm64 legs run natively on ubuntu-24.04-arm (free for public repos).
 # Fallback: set the repository variable WAAS_IMAGES_BUILD_STRATEGY=qemu
@@ -46,7 +64,7 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  packages: write   # GHCR: the CI-internal build/merge registry, see above
   id-token: write   # cosign keyless OIDC
 
 env:
@@ -54,6 +72,10 @@ env:
   CI_REGISTRY: ghcr.io
   CI_REGISTRY_USER: ${{ github.actor }}
   CI_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+  CI_PUBLIC_REGISTRY: docker.io
+  CI_PUBLIC_REGISTRY_USER: ${{ secrets.DOCKER_HUB_USERNAME }}
+  CI_PUBLIC_REGISTRY_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+  CI_PUBLIC_REGISTRY_IMAGE: docker.io/${{ secrets.DOCKER_HUB_USERNAME }}
   CI_COMMIT_SHA: ${{ github.sha }}
   CI_COMMIT_BRANCH: ${{ github.ref_name }}
   CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -67,6 +89,13 @@ jobs:
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
+      # hadolint/hadolint has no ghcr.io mirror, so authenticate instead:
+      # anonymous docker.io pulls share a rate-limit pool across every
+      # concurrent GitHub-hosted runner worldwide, not just this repo's
+      # traffic, and get exhausted by other tenants regardless of how
+      # little this job pulls on its own.
+      - name: docker login (docker.io, for the hadolint pull below)
+        run: docker login -u "${CI_PUBLIC_REGISTRY_USER}" -p "${CI_PUBLIC_REGISTRY_PASSWORD}" "${CI_PUBLIC_REGISTRY}"
       - name: hadolint
         run: |
           # shellcheck disable=SC2046  # find-output splitting is deliberate (no spaces in repo paths), same as the GitLab job
@@ -104,7 +133,9 @@ jobs:
           echo "short_sha=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
           # OCI repository names must be lowercase; github.repository
           # preserves the owner/repo casing (XoRHub/waas-images), which
-          # `docker build -t` rejects.
+          # `docker build -t` rejects. Only needed for GHCR
+          # (CI_REGISTRY_IMAGE) — CI_PUBLIC_REGISTRY_IMAGE (docker.io) is
+          # already lowercase by construction (Docker Hub usernames are).
           echo "registry_image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
   layer-0:
@@ -140,6 +171,12 @@ jobs:
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
+      # buildx talks to the GHA cache service directly (--cache-to/from
+      # type=gha in ci/build_image.sh); this just exposes the endpoint
+      # + token the plain buildx CLI needs and can't discover on its own
+      # (docker/build-push-action does this internally, we don't use it).
+      - name: Expose GitHub Actions cache variables
+        uses: crazy-max/ghaction-github-runtime@v4.0.0
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -201,6 +238,12 @@ jobs:
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
+      # buildx talks to the GHA cache service directly (--cache-to/from
+      # type=gha in ci/build_image.sh); this just exposes the endpoint
+      # + token the plain buildx CLI needs and can't discover on its own
+      # (docker/build-push-action does this internally, we don't use it).
+      - name: Expose GitHub Actions cache variables
+        uses: crazy-max/ghaction-github-runtime@v4.0.0
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -262,6 +305,12 @@ jobs:
       - uses: astral-sh/setup-uv@v8.3.2
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
+      # buildx talks to the GHA cache service directly (--cache-to/from
+      # type=gha in ci/build_image.sh); this just exposes the endpoint
+      # + token the plain buildx CLI needs and can't discover on its own
+      # (docker/build-push-action does this internally, we don't use it).
+      - name: Expose GitHub Actions cache variables
+        uses: crazy-max/ghaction-github-runtime@v4.0.0
       - name: Build, smoke, scan, push
         run: sh ci/build_image.sh
 
@@ -313,7 +362,6 @@ jobs:
       contents: write   # create the rolling release + upload its asset
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      CI_REGISTRY_IMAGE: ${{ needs.setup.outputs.registry_image }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v8.3.2

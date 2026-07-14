@@ -12,15 +12,3 @@ images:
   version: 1.19.0
   icon: firefox
   displayName: Kasm Firefox
-- image: docker.io/kasmweb/chromium:1.19.0
-  os: linux
-  app: chromium
-  version: 1.19.0
-  icon: chromium
-  displayName: Kasm Chromium
-- image: docker.io/kasmweb/tor-browser:1.19.0
-  os: linux
-  app: tor-browser
-  version: 1.19.0
-  icon: tor-browser
-  displayName: Kasm Tor Browser

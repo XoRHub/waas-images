@@ -11,10 +11,11 @@
 # FORCE_MIRROR=1 asks to backfill an already-published one — see
 # below), mirror it to the public Docker Hub registry (single-source
 # registry copy — the pattern Docker's own docs demonstrate for
-# cross-registry copies, unlike the multi-source combine above) and
-# cosign-sign that public copy only: nobody pulls or verifies the
-# GHCR-internal one directly. Driven by IMG_* variables emitted by
-# ci/generate_pipeline.py.
+# cross-registry copies, unlike the multi-source combine above),
+# cosign-sign that public copy, and best-effort attach a CycloneDX SBOM
+# attestation to it too (see the sbom+attest section below) — nobody
+# pulls or verifies the GHCR-internal one directly. Driven by IMG_*
+# variables emitted by ci/generate_pipeline.py.
 set -eu
 
 : "${IMG_NAME:?}" "${IMG_VERSION:?}" "${IMG_ARCHS:?}"
@@ -136,4 +137,61 @@ if [ "${PUBLISH_VERSION}" = "1" ]; then
             -a revision="${CI_COMMIT_SHA}" \
             "${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
     fi
+fi
+
+# ------------------------------------------------------------- sbom+attest
+# Attaches a signed CycloneDX SBOM to the published image itself (cosign
+# attest), so anyone with just the image ref can retrieve it
+# (`cosign download sbom`/`verify-attestation`) forever — unlike the
+# per-arch sbom-N jobs' workflow-artifact upload, which expires and
+# isn't discoverable from the image alone. Consultable in the one place
+# that matters, no separate store to keep in sync.
+#
+# One representative platform (amd64 — "mandatory" per images.yaml's
+# archs comment): package sets barely differ by arch for these
+# Dockerfiles, and attesting every platform would double Rekor writes
+# for no real benefit.
+#
+# Best-effort, deliberately non-fatal — same tolerance already applied
+# to scan-N/sbom-N (their own header comments: "must never block push/
+# merge/catalog"): a Sigstore Rekor/Fulcio hiccup or a transient trivy
+# failure here must not undo the mirror+sign that already succeeded
+# above. Same key/keyless branching as the sign block; silently skipped
+# if neither is configured (nothing to attest with).
+attach_sbom() {
+    log "trivy sbom (cyclonedx) ${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
+    docker run --rm \
+        -v "$(pwd):/out" \
+        -v trivy-cache:/root/.cache/trivy \
+        ghcr.io/aquasecurity/trivy:0.72.0 image \
+        --username "${CI_PUBLIC_REGISTRY_USER}" --password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
+        --platform linux/amd64 \
+        --format cyclonedx \
+        --output /out/sbom.cdx.json \
+        "${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
+
+    log "cosign attest (cyclonedx sbom)"
+    if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then
+        docker run --rm -v "$(pwd):/work" -w /work -e COSIGN_PRIVATE_KEY -e COSIGN_PASSWORD \
+            ghcr.io/sigstore/cosign/cosign:v2.6.3 attest --yes \
+            --key env://COSIGN_PRIVATE_KEY \
+            --predicate sbom.cdx.json --type cyclonedx \
+            --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
+            --registry-password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
+            "${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
+    elif [ "${COSIGN_KEYLESS:-0}" = "1" ]; then
+        docker run --rm -v "$(pwd):/work" -w /work \
+            -e ACTIONS_ID_TOKEN_REQUEST_TOKEN -e ACTIONS_ID_TOKEN_REQUEST_URL \
+            ghcr.io/sigstore/cosign/cosign:v2.6.3 attest --yes \
+            --predicate sbom.cdx.json --type cyclonedx \
+            --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
+            --registry-password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
+            "${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
+    else
+        log "no cosign key configured — skipping SBOM attestation"
+    fi
+}
+
+if [ "${PUBLISH_VERSION}" = "1" ]; then
+    attach_sbom || log "WARNING: SBOM attestation failed (non-fatal) for ${PUBLIC_IMAGE}@${PUBLIC_DIGEST}"
 fi

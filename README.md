@@ -141,7 +141,9 @@ Firefox is amd64-only until packages.mozilla.org's arm64 debs are
 validated). Pipeline: generate (incl. recipe compilation) →
 hadolint/shellcheck → per image and per arch *build → smoke → push
 `-g<sha>-<arch>` (OCI mediatypes)*, then a merge job assembles the
-annotated manifest list and cosign-signs it. Trivy and the SBOM run as
+annotated manifest list, mirrors it to Docker Hub, cosign-signs the
+public copy and (best-effort) cosign-attests a CycloneDX SBOM to it too
+— see § "SBOMs" below. Trivy and a second, per-arch SBOM run as
 separate jobs against the pushed tag, in parallel with the merge —
 both smoke (a hard gate) and push run on BOTH arches, but a trivy
 finding or an SBOM failure never blocks the push, merge or catalog: it
@@ -149,6 +151,19 @@ only fails that specific job, visibly. Fallback: the CI variable
 `WAAS_IMAGES_BUILD_STRATEGY=qemu` routes every build job to the amd
 fleet under emulation (arm fleet down) — same jobs, same gates, just
 slower.
+
+**SBOMs**: two mechanisms, two purposes. The per-arch `sbom-N` jobs
+upload a CycloneDX SBOM as a GitHub Actions workflow artifact — fine
+for debugging that specific run, but it expires (default retention)
+and isn't discoverable from the image alone. The one that matters for
+consumers is the cosign attestation `merge_image.sh` adds to the
+published Docker Hub image itself (one representative platform, amd64
+— package sets barely differ by arch here): `cosign download sbom
+<image>` or `cosign verify-attestation --type cyclonedx <image>`
+retrieves it from the image reference alone, indefinitely, no separate
+store to keep in sync. Best-effort like the trivy/SBOM jobs above — a
+Sigstore Rekor/Fulcio hiccup must not undo the mirror+sign that already
+succeeded.
 
 **GitHub is the sole forge** — this project is open source on GitHub,
 its one canonical and publicly accessible forge (GitLab is no longer

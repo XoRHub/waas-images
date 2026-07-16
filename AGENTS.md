@@ -84,7 +84,7 @@ Before declaring a change to `ci/generate_pipeline.py`,
 `ci/generate_image_readme.py`, or `ci/recipe_compiler.py` done, run the
 matching tests in `ci/tests/` —
 they assert the exact YAML/JSON shape downstream consumers
-(`waas-fable`'s reconciler, the GitHub Actions skeleton) depend on.
+(`waas`'s CatalogSyncWorker, the GitHub Actions skeleton) depend on.
 
 ## GitHub is the forge
 

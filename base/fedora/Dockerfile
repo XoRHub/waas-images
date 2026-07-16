@@ -23,7 +23,7 @@ FROM ${OS_BASE_IMAGE}
 
 # Fixed, overridable identity. The home path follows WAAS_USER
 # (/home/waas_user by default) and must match the operator's
-# DefaultHomeMountPath (waas-fable), where the Workspace home PVC is
+# DefaultHomeMountPath (waas), where the Workspace home PVC is
 # mounted — the two repos change this value together.
 ARG WAAS_USER=waas_user
 ARG WAAS_UID=1000
@@ -99,7 +99,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
 RUN if id -u 1000 >/dev/null 2>&1; then userdel -r "$(id -un 1000)"; fi && \
     groupadd -g "${WAAS_GID}" "${WAAS_USER}" && \
     # Home is /home/waas_user: the mount path the operator uses for the
-    # persistent home PVC (DefaultHomeMountPath in waas-fable).
+    # persistent home PVC (DefaultHomeMountPath in waas).
     useradd -l -m -u "${WAAS_UID}" -g "${WAAS_GID}" -d /home/waas_user -s /bin/bash "${WAAS_USER}"
 
 # Drop every setuid/setgid bit: nothing we run needs privilege escalation,

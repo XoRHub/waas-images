@@ -234,9 +234,9 @@ into the image:
 
 ## Image catalogs (WaaS picker)
 
-WaaS (`waas-fable`) lets a user create a workspace straight from an
+WaaS (`waas`) lets a user create a workspace straight from an
 admin-approved registry image, without a per-image WorkspaceTemplate.
-Its `WorkspaceImageReconciler` periodically fetches catalog files —
+Its api-server's `CatalogSyncWorker` periodically fetches catalog files —
 `{image, os, app, version, icon, displayName}` lists, plus
 `profile`/`recommended` deployment hints on `catalog-waas-images.yaml`
 entries (see Design notes below), under
@@ -294,7 +294,7 @@ Design notes:
 - **`main` is the only ref, always overwritten in place**: this repo has
   no repo-global version or git tag (each image versions independently
   via its manifest), so there is nothing meaningful to pin a catalog
-  snapshot to anyway — `waas-fable` always wants the newest catalog, and
+  snapshot to anyway — `waas` always wants the newest catalog, and
   `main` always has it. `-g<sha>`-tagged branch builds never publish
   (same guard as the immutable image tags).
 - Both publish jobs are best-effort (`continue-on-error`): the catalogs

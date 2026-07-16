@@ -527,7 +527,7 @@ jobs:
   # work) — scan-N/sbom-N are, as above, absent from `needs:` entirely.
   # continue-on-error = allow_failure: the catalog is a secondary
   # deliverable, its failure never makes a green build look red. The
-  # committed copy on main IS the source waas-fable fetches (Contents
+  # committed copy on main IS the source waas fetches (Contents
   # API/raw URL pinned to main) — no GitHub Release involved.
   catalog:
     needs: [lint, setup, layer-0, layer-1, layer-2, merge-0, merge-1, merge-2]

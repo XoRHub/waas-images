@@ -10,7 +10,7 @@
 # (falling back to the mapping's knownVersion when Hub is unreachable —
 # the generator is best-effort by design) and commits the regenerated
 # file straight to main (see ci/commit_catalog.sh) — main is the only
-# source waas-fable fetches from, no GitHub Release involved.
+# source waas fetches from, no GitHub Release involved.
 #
 # Caveat: GitHub disables cron-triggered workflows after 60 days without
 # repo activity — re-enable from the Actions tab, or run the

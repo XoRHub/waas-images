@@ -1,5 +1,5 @@
 # Hand-curated mapping of the upstream docker.io/kasmweb/* images WaaS
-# consumes (referenced today in waas-fable gitops/governance/images.yaml).
+# consumes (referenced today in waas gitops/governance/images.yaml).
 # NOT images this repo builds: kasm/ sits deliberately outside the
 # base/desktop/apps build layers and generate_pipeline.py never reads it.
 #

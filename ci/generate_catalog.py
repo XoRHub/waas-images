@@ -16,6 +16,14 @@ tags it references must already exist — unlike generate_pipeline.py
 which runs before. `image:version` needs no digest: <version> tags are
 immutable by CI construction (README § Build matrix & tagging).
 
+Every entry also carries `profile`/`recommended` — waas's deployment
+recommendation fields (wire format: shared/catalog.Entry, vendored
+schema: ci/schema/v1.schema.json). Both are derived locally from data
+already in this repo (variant `profile:`, `smoke:`, HARDENING.md's
+platform-side doctrine) rather than hand-written in any manifest.yaml,
+so they cannot drift from the doctrine they mirror. See
+RECOMMENDATION_STANDARD/RECOMMENDATION_DEV below.
+
 Every entry is normally "{registry}/{variant name}:{variant version}"
 against --registry (default $CI_PUBLIC_REGISTRY_IMAGE, docker.io — the
 registry ci/merge_image.sh mirrors the finished <version> manifest list
@@ -38,6 +46,7 @@ guessed at.
 from __future__ import annotations
 
 import argparse
+import copy
 import os
 import subprocess
 import sys
@@ -51,6 +60,131 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import generate_pipeline as gp  # noqa: E402
 
 API_VERSION = "waas.xorhub.io/catalog/v1"
+
+# variant["profile"] ("standard"/"dev", set by flatten_variants) -> wire
+# Entry.profile ("hardened"/"normal"). Total mapping: flatten_variants
+# already rejects any other value, so every catalogued entry gets one.
+PROFILE_WIRE_NAME = {"standard": "hardened", "dev": "normal"}
+
+# Mirrors HARDENING.md § "To apply on the platform side" (the pod
+# securityContext/volumes recommended for every image built here).
+# Keep these two constants and that section in sync by hand — cross-
+# reference the line numbers there if you touch either.
+RECOMMENDATION_STANDARD = {
+    "podSecurityContext": {
+        "runAsNonRoot": True,
+        "runAsUser": 1000,
+        "fsGroup": 1000,
+        "seccompProfile": {"type": "RuntimeDefault"},
+    },
+    "securityContext": {
+        "allowPrivilegeEscalation": False,
+        "capabilities": {"drop": ["ALL"]},
+        "readOnlyRootFilesystem": True,
+    },
+    "volumes": [
+        {"name": "tmp", "mountPath": "/tmp"},
+        {"name": "run", "mountPath": "/run"},
+    ],
+}
+
+# Mirrors HARDENING.md § "Reduced profile: `-dev` images" — identical to
+# RECOMMENDATION_STANDARD except the four exceptions documented there:
+# readOnlyRootFilesystem/allowPrivilegeEscalation flip, and ALL is no
+# longer dropped (runtime-default capabilities are kept so the -dev
+# image's setuid sudo can regain them within the bounding set — the
+# fourth exception, "no setuid binary", has no PodSecurityContext/
+# SecurityContext field to express and is a fact of the image, not a
+# deployment recommendation).
+RECOMMENDATION_DEV = {
+    "podSecurityContext": copy.deepcopy(RECOMMENDATION_STANDARD["podSecurityContext"]),
+    "securityContext": {
+        "allowPrivilegeEscalation": True,
+        "readOnlyRootFilesystem": False,
+    },
+    "volumes": copy.deepcopy(RECOMMENDATION_STANDARD["volumes"]),
+}
+
+# smoke.<protocol> (variant["smoke"], the same signal build_vars() reads
+# — absent and explicitly False are equivalent everywhere it's read) ->
+# the EnvHint(s) to surface for that protocol. Names as actually present
+# in this repo today (grep RDP_AUTH_ENABLED README.md HARDENING.md
+# base/*/Dockerfile before touching this table — 43-prompt-waas-images-
+# env-naming.md would rename RDP_AUTH_ENABLED if it ever lands).
+_ENV_HINTS_BY_PROTOCOL = {
+    "rdp": [
+        {
+            "name": "WAAS_RDP_ENABLED",
+            "description": "Enable xrdp — boolean '0'/'1'. Requires the "
+                            "image to have been built with INSTALL_RDP=1 "
+                            "(OS-only images only); no relevant runtime "
+                            "default to advertise here.",
+            "protocols": ["rdp"],
+        },
+        {
+            "name": "RDP_AUTH_ENABLED",
+            "description": "Require the RDP client to present the session "
+                            "password. Baked true; an explicit runtime "
+                            "false opts out and logs a warning — never a "
+                            "build-time toggle.",
+            "protocols": ["rdp"],
+            "default": "true",
+        },
+    ],
+    "ssh": [
+        {
+            "name": "WAAS_SSH_ENABLED",
+            "description": "Enable sshd (publickey only) — boolean '0'/'1'.",
+            "protocols": ["ssh"],
+            "default": "0",
+            "requires": ["WAAS_SSH_AUTHORIZED_KEYS_FILE"],
+        },
+        {
+            "name": "WAAS_SSH_AUTHORIZED_KEYS_FILE",
+            "description": "Path to the authorized public key — mount "
+                            "from a Secret (valueFrom.secretKeyRef), never "
+                            "a literal value. Required as soon as "
+                            "WAAS_SSH_ENABLED=1: the entrypoint refuses to "
+                            "start otherwise (fail-closed by design).",
+            "protocols": ["ssh"],
+        },
+    ],
+    "vnc": [
+        {
+            "name": "WAAS_AUDIO_ENABLED",
+            "description": "Enable the unprivileged PulseAudio daemon "
+                            "(native protocol on TCP 4713, consumed by "
+                            "guacd's VNC client) — boolean '0'/'1'.",
+            "protocols": ["vnc"],
+            "default": "1",
+        },
+    ],
+}
+
+
+def env_hints(smoke: dict) -> list[dict]:
+    """recommended.env for one variant, derived from its smoke: block —
+    the only per-image protocol signal that reaches every catalogued
+    variant (build_args/INSTALL_RDP/INSTALL_SSH don't: they're never
+    redeclared on desktop/*/apps/* manifests, so build_args is empty on
+    every variant this generator actually publishes)."""
+    hints: list[dict] = []
+    for protocol in ("rdp", "ssh", "vnc"):
+        if smoke.get(protocol):
+            hints.extend(copy.deepcopy(_ENV_HINTS_BY_PROTOCOL[protocol]))
+    return hints
+
+
+def recommended_for(v: dict) -> dict:
+    """entry["recommended"] for one variant: the fixed standard/dev
+    Recommendation block for its profile, plus env hints for whichever
+    protocols its smoke: block declares."""
+    base = RECOMMENDATION_DEV if v["profile"] == "dev" else RECOMMENDATION_STANDARD
+    recommended = copy.deepcopy(base)
+    hints = env_hints(v["smoke"])
+    if hints:
+        recommended["env"] = hints
+    return recommended
 
 
 def load_previous(path: Path) -> dict[str, dict]:
@@ -121,6 +255,15 @@ def catalog(
         if v["description"]:
             entry["displayName"] = textwrap.shorten(
                 v["description"], width=80, placeholder="…")
+        # Recalculated from the current manifest/HARDENING.md-derived
+        # constants every run, exactly like icon/displayName above —
+        # never copied from previous[name]. A failed build's fallback
+        # entry can therefore reference an old image:version alongside
+        # a profile/recommended computed from the CURRENT manifest;
+        # that's the same staleness already accepted for icon/
+        # displayName, not a new risk.
+        entry["profile"] = PROFILE_WIRE_NAME[v["profile"]]
+        entry["recommended"] = recommended_for(v)
         images.append(entry)
     return {"apiVersion": API_VERSION, "images": images}
 

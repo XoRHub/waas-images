@@ -96,6 +96,11 @@ is enforced, so the list is verifiable, not aspirational.
       audio stays enabled: 4713 accepts anonymous clients by design.
 - [ ] Template credentials from Vault/ESO (see README § Secrets).
 
+Machine mirror: `ci/generate_catalog.py`'s `RECOMMENDATION_STANDARD`
+derives the published catalog's `recommended` block from this section —
+not a guarantee against drift, but keep both in sync when editing
+either.
+
 ## Reduced profile: `-dev` images
 
 Some workspaces are development environments whose users legitimately
@@ -133,6 +138,11 @@ variant whose name lacks the `-dev` suffix or whose `profile:` is not
 loud boot warning (`RDP_AUTH_ENABLED=false` precedent); the catalog
 entry must keep its `allowedGroups` gate (platform-side, documented
 contract — same list as the standard `devtools`).
+
+Machine mirror: `ci/generate_catalog.py`'s `RECOMMENDATION_DEV` derives
+the published catalog's `recommended` block (`profile: normal`) from
+the three exceptions above — not a guarantee against drift, but keep
+both in sync when editing either.
 
 ## Runtime init hook (`/etc/waas/init.d/`)
 

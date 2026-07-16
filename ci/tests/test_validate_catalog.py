@@ -30,6 +30,52 @@ class ValidateCatalog(unittest.TestCase):
             icon="ubuntu-linux", displayName="XFCE desktop")
         self.assertEqual(vc.validate(data, SCHEMA), [])
 
+    def test_full_recommended_entry_valid(self):
+        # waas docs/image-catalog.md's canonical example (~lines 151-187
+        # at 2026-07-16) — the exact shape ci/generate_catalog.py must
+        # be able to emit.
+        data = minimal()
+        data["images"][0].update(
+            os="linux", app="ubuntu-xfce", version="1.1.0",
+            profile="hardened",
+            recommended={
+                "podSecurityContext": {"runAsUser": 1000, "runAsNonRoot": True},
+                "securityContext": {
+                    "readOnlyRootFilesystem": True,
+                    "capabilities": {"drop": ["ALL"]},
+                },
+                "volumes": [
+                    {"name": "tmp", "mountPath": "/tmp"},
+                    {"name": "run", "mountPath": "/run", "readOnly": True},
+                ],
+                "env": [
+                    {
+                        "name": "WAAS_SSH_ENABLED",
+                        "description": "Enable sshd (publickey only) — boolean '0'/'1'",
+                        "protocols": ["ssh"],
+                        "default": "0",
+                        "requires": ["WAAS_SSH_AUTHORIZED_KEYS_FILE"],
+                    },
+                    {
+                        "name": "WAAS_SSH_AUTHORIZED_KEYS_FILE",
+                        "description": "Path to the authorized public key.",
+                        "protocols": ["ssh"],
+                    },
+                ],
+            },
+        )
+        self.assertEqual(vc.validate(data, SCHEMA), [])
+
+    def test_profile_out_of_enum(self):
+        data = minimal()
+        data["images"][0]["profile"] = "bogus"
+        self.assertTrue(vc.validate(data, SCHEMA))
+
+    def test_recommended_unknown_key(self):
+        data = minimal()
+        data["images"][0]["recommended"] = {"bogus": True}
+        self.assertTrue(vc.validate(data, SCHEMA))
+
     def test_missing_api_version(self):
         data = minimal()
         del data["apiVersion"]

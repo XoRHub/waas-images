@@ -237,7 +237,9 @@ into the image:
 WaaS (`waas-fable`) lets a user create a workspace straight from an
 admin-approved registry image, without a per-image WorkspaceTemplate.
 Its `WorkspaceImageReconciler` periodically fetches catalog files —
-`{image, os, app, version, icon, displayName}` lists under
+`{image, os, app, version, icon, displayName}` lists, plus
+`profile`/`recommended` deployment hints on `catalog-waas-images.yaml`
+entries (see Design notes below), under
 `apiVersion: waas.xorhub.io/catalog/v1` (full contract: TODO — link
 published docs once available) — directly from this repo's `main`
 branch (Contents API or raw URL, e.g.
@@ -289,6 +291,14 @@ Design notes:
   (same guard as the immutable image tags).
 - Both publish jobs are best-effort (`continue-on-error`): the catalogs
   are secondary deliverables and must never block image publication.
+- `catalog-waas-images.yaml` entries carry `profile` (`hardened` for
+  `standard`-profile variants, `normal` for `-dev` ones) and a
+  `recommended` block, both derived from this repo's own
+  `manifest.yaml`/`HARDENING.md` doctrine (`ci/generate_catalog.py`'s
+  `RECOMMENDATION_STANDARD`/`RECOMMENDATION_DEV` + a `smoke:`-driven
+  `env` hint list) — never hand-written. `catalog-kasmweb.yaml` has
+  neither: those upstream images have no local manifest/doctrine to
+  derive from.
 
 ## Per-image docs
 

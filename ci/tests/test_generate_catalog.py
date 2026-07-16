@@ -64,6 +64,10 @@ class CatalogFormat(unittest.TestCase):
             "version": "1.1.0",
             "icon": "ubuntu-linux",
             "displayName": "XFCE desktop, VNC + RDP, derived from the apt base-rdp image.",
+            # No smoke: on this fixture's variant, so no env hints — but
+            # profile/recommended are still always present (total mapping).
+            "profile": "hardened",
+            "recommended": gc.RECOMMENDATION_STANDARD,
         })
 
     def test_variant_icon_override(self):
@@ -106,6 +110,96 @@ class CatalogFormat(unittest.TestCase):
         out = gc.catalog(variants, "reg")
         by_app = {e["app"]: e for e in out["images"]}
         self.assertNotIn("core-ubuntu-noble", by_app)
+
+
+RECOMMENDED_MANIFESTS = [
+    {
+        "name": "ubuntu-desktop-full",
+        "layer": "base",
+        "context": "base/ubuntu",
+        "dockerfile": None,
+        "description": "OS-only desktop, VNC + RDP + SSH.",
+        "version": "1.0.0",
+        "variants": [
+            {"name": "ubuntu-desktop-full",
+             "smoke": {"vnc": True, "rdp": True, "ssh": True}},
+        ],
+    },
+    {
+        "name": "chrome",
+        "layer": "apps",
+        "context": "apps/chrome",
+        "dockerfile": None,
+        "description": "Chrome desktop, VNC only.",
+        "version": "1.0.0",
+        # Mirrors apps/chrome/manifest.yaml: only vnc: true declared,
+        # no explicit rdp:/ssh: false.
+        "variants": [{"name": "chrome", "smoke": {"vnc": True}}],
+    },
+    {
+        "name": "devtools",
+        "layer": "apps",
+        "context": "apps/devtools",
+        "dockerfile": None,
+        "description": "Dev desktop.",
+        "version": "1.0.0",
+        "variants": [
+            {"name": "devtools", "smoke": {"vnc": True}},
+            {"name": "devtools-dev", "profile": "dev", "smoke": {"vnc": True}},
+        ],
+    },
+]
+
+
+class CatalogRecommended(unittest.TestCase):
+    """profile/recommended derivation (variant profile: + HARDENING.md-
+    mirroring constants + smoke:-derived env hints)."""
+
+    def setUp(self):
+        variants = gp.flatten_variants(RECOMMENDED_MANIFESTS, CFG)
+        self.out = gc.catalog(variants, "reg")
+        self.by_app = {e["app"]: e for e in self.out["images"]}
+
+    def test_standard_profile_maps_to_hardened(self):
+        entry = self.by_app["chrome"]
+        self.assertEqual(entry["profile"], "hardened")
+        sec = entry["recommended"]["securityContext"]
+        self.assertTrue(sec["readOnlyRootFilesystem"])
+        self.assertFalse(sec["allowPrivilegeEscalation"])
+        self.assertEqual(sec["capabilities"], {"drop": ["ALL"]})
+        self.assertEqual(entry["recommended"]["volumes"], [
+            {"name": "tmp", "mountPath": "/tmp"},
+            {"name": "run", "mountPath": "/run"},
+        ])
+
+    def test_dev_profile_maps_to_normal_with_exceptions(self):
+        entry = self.by_app["devtools-dev"]
+        self.assertEqual(entry["profile"], "normal")
+        sec = entry["recommended"]["securityContext"]
+        self.assertFalse(sec["readOnlyRootFilesystem"])
+        self.assertTrue(sec["allowPrivilegeEscalation"])
+        # Runtime-default capabilities kept — never an explicit empty drop.
+        self.assertNotIn("capabilities", sec)
+        # podSecurityContext (non-root UID/GID, seccomp) holds unchanged.
+        self.assertEqual(
+            entry["recommended"]["podSecurityContext"],
+            self.by_app["devtools"]["recommended"]["podSecurityContext"])
+
+    def test_env_hints_follow_smoke(self):
+        self.assertEqual(
+            [h["name"] for h in self.by_app["ubuntu-desktop-full"]["recommended"]["env"]],
+            ["WAAS_RDP_ENABLED", "RDP_AUTH_ENABLED", "WAAS_SSH_ENABLED",
+             "WAAS_SSH_AUTHORIZED_KEYS_FILE", "WAAS_AUDIO_ENABLED"])
+        self.assertEqual(
+            [h["name"] for h in self.by_app["chrome"]["recommended"]["env"]],
+            ["WAAS_AUDIO_ENABLED"])
+
+    def test_no_smoke_protocols_omits_env_key(self):
+        # MANIFESTS' ubuntu-xfce/debian-xfce carry no smoke: at all.
+        variants = gp.flatten_variants(MANIFESTS, CFG)
+        out = gc.catalog(variants, "reg")
+        by_app = {e["app"]: e for e in out["images"]}
+        self.assertNotIn("env", by_app["ubuntu-xfce"]["recommended"])
 
 
 class CatalogFallback(unittest.TestCase):

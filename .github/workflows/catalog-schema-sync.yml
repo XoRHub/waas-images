@@ -1,0 +1,78 @@
+# waas-images — scheduled detection of drift between the vendored
+# catalog wire-format schema (ci/schema/v1.schema.json) and its source
+# of truth, XoRHub/waas's shared/catalog/schema/v1.schema.json (see
+# ci/schema/README.md). Point 8 of the "catalog recommended defaults"
+# study, deferred out of the Feature 17 prompt and implemented here as
+# its own scoped change.
+#
+# Deliberately NOT a twin of catalog-kasmweb.yml: that workflow commits
+# a regenerated data file straight to main because it can never be
+# breaking. A schema change can be (tightened enum, new required
+# field, removed property), so this one only opens a PR — never
+# auto-merged — for a human to review the actual diff. build.yml's own
+# `catalog` job already re-validates both catalogs against the
+# candidate schema as a normal check on that PR (ci/** is one of its
+# trigger paths), so no separate validation step is duplicated here.
+#
+# Both waas and waas-images are public repos, so ci/sync_schema.sh
+# needs no cross-repo token to read waas's file — just an
+# unauthenticated raw.githubusercontent.com fetch. Pushing the sync
+# branch works with the default GITHUB_TOKEN: this repo's branch
+# ruleset (verified-signature requirement) only targets `main`, not
+# arbitrary branches — the PR's eventual merge commit is what needs to
+# be Verified, and GitHub's own web-UI merge satisfies that the same
+# way the Contents API does for catalog-kasmweb.yml.
+name: catalog-schema-sync
+
+on:
+  schedule:
+    # Weekly, not daily like catalog-kasmweb.yml: waas's v1 wire format
+    # is additive-only by its own discipline (ci/schema/README.md), so
+    # drift is rare — no need for daily polling.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write       # push the sync branch
+  pull-requests: write  # open the PR
+
+jobs:
+  sync-schema:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Detect schema drift
+        id: sync
+        run: sh ci/sync_schema.sh
+
+      - name: Open re-sync PR
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          WAAS_SHA: ${{ steps.sync.outputs.waas_sha }}
+        run: |
+          SHORT_SHA=$(echo "${WAAS_SHA}" | cut -c1-12)
+          BRANCH="chore/schema-sync-${SHORT_SHA}"
+
+          # Idempotent: if a PR for this exact waas commit is already
+          # open (or was pushed by a previous run of this workflow),
+          # its branch still exists — nothing new to do.
+          if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null 2>&1; then
+            echo "branch ${BRANCH} already exists on origin, re-sync already pending — nothing to do"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BRANCH}"
+          git add ci/schema/v1.schema.json ci/schema/README.md
+          git commit -m "chore(catalog): re-sync ci/schema/v1.schema.json with waas @ ${SHORT_SHA}"
+          git push origin "${BRANCH}"
+
+          gh pr create \
+            --title "chore(catalog): re-sync ci/schema/v1.schema.json (waas @ ${SHORT_SHA})" \
+            --body "Vendored catalog wire-format schema drifted from \`waas\`'s [\`shared/catalog/schema/v1.schema.json\` @ \`${WAAS_SHA}\`](https://github.com/XoRHub/waas/blob/${WAAS_SHA}/shared/catalog/schema/v1.schema.json). Opened automatically by \`catalog-schema-sync.yml\` — **not merged automatically**. Review the schema diff for breaking changes (new \`required\` property, tightened \`enum\`, removed property) before merging; this PR's own \`catalog\` job (build.yml) re-validates both catalogs against the new schema." \
+            --base main \
+            --head "${BRANCH}"

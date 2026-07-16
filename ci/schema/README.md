@@ -10,7 +10,15 @@ it can never drift from the actual parser. The generator lived under
 moved it to `shared/catalog/schema/`.
 
 The `v1` contract is frozen/additive-only by `waas`'s own discipline,
-so silent drift risk is low. To re-sync: copy the file from `waas`
-`main` unchanged and update the commit SHA above. If `waas` ever
-publishes a `v2.schema.json`, vendor it alongside this one and branch
-`ci/validate_catalog.py` on `apiVersion`.
+so silent drift risk is low. To re-sync by hand: copy the file from
+`waas` `main` unchanged and update the commit SHA above.
+
+`.github/workflows/catalog-schema-sync.yml` also checks weekly (plus
+`workflow_dispatch`) for drift and opens a PR — never merges it
+automatically, since a schema change can be breaking — via
+`ci/sync_schema.sh`. That script is the authoritative re-sync
+procedure; the by-hand steps above are only for running it locally or
+understanding what it does.
+
+If `waas` ever publishes a `v2.schema.json`, vendor it alongside this
+one and branch `ci/validate_catalog.py` on `apiVersion`.

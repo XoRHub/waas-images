@@ -270,6 +270,14 @@ tooling prerequisite is [uv](https://docs.astral.sh/uv/) — every
 `ci/*.py` script pins its own dependencies inline (PEP 723), locally
 and in CI alike.
 
+The vendored schema itself can drift from `waas` (a schema change can
+be breaking, unlike a regenerated data file), so
+`catalog-schema-sync.yml` (weekly + `workflow_dispatch`, via
+`ci/sync_schema.sh`) only opens a PR when it detects a difference —
+never auto-merged, always human-reviewed; `build.yml`'s `catalog` job
+re-validates both catalogs against the candidate schema as part of
+that PR's normal checks.
+
 Design notes:
 
 - Catalog entries reference `<name>:<version>` with **no digest**: the

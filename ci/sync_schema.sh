@@ -14,16 +14,20 @@
 # human to review, never straight to main.
 set -eu
 
-WAAS_RAW_BASE="https://raw.githubusercontent.com/XoRHub/waas/main"
 SCHEMA_PATH="shared/catalog/schema/v1.schema.json"
 LOCAL_SCHEMA="ci/schema/v1.schema.json"
 LOCAL_README="ci/schema/README.md"
 
+# Resolve the SHA first, then fetch the file content pinned to that
+# exact SHA (not a second, separate "main" request) — otherwise a push
+# to waas main landing between the two calls would make the SHA
+# recorded below (and the PR title/link built from it) describe a
+# different commit than the bytes actually vendored.
 WAAS_SHA=$(gh api repos/XoRHub/waas/commits/main --jq .sha)
 
 TMP_SCHEMA=$(mktemp)
 trap 'rm -f "${TMP_SCHEMA}"' EXIT
-curl -fsSL "${WAAS_RAW_BASE}/${SCHEMA_PATH}" -o "${TMP_SCHEMA}"
+curl -fsSL "https://raw.githubusercontent.com/XoRHub/waas/${WAAS_SHA}/${SCHEMA_PATH}" -o "${TMP_SCHEMA}"
 
 if diff -q "${TMP_SCHEMA}" "${LOCAL_SCHEMA}" >/dev/null 2>&1; then
     echo "${LOCAL_SCHEMA} already matches waas @ ${WAAS_SHA}"

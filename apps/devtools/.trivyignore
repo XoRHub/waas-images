@@ -1,0 +1,35 @@
+# .trivyignore — devtools / devtools-dev (context: apps/devtools)
+# Added 2026-07-17 after the 2.0.0 rebuild scan (run 29545524010) gated red.
+#
+# All four findings are ONE false positive, matched four times: trivy's
+# node-pkg analyzer reads VS Code's bundled built-in extension manifest
+# usr/share/code/resources/app/extensions/npm/package.json — the "npm
+# scripts support" UI extension, whose manifest declares name "npm",
+# version "1.0.1" (the extension's own version) — and misidentifies it
+# as the npm CLI at 1.0.1, then reports every npm-CLI CVE fixed since.
+# The npm package manager itself is NOT installed in this image (no
+# nodejs/npm apt package; VS Code's `code` deb is the only Node-adjacent
+# payload), so there is no vulnerable code to exploit.
+#
+# Revisit: remove these entries once trivy stops flagging VS Code
+# built-in extension manifests as the npm CLI (re-test on a trivy bump
+# past 0.72.0), or if a future image change installs a real npm CLI —
+# a real npm would be a distro package (ubuntu class), not covered by
+# these node-pkg-matched entries, so it would still gate correctly.
+
+# npm CLI < 5.7.1: chown of system paths when npm runs as root. Not the
+# npm CLI — VS Code extension manifest misdetection (see header).
+CVE-2018-7408
+
+# npm CLI < 6.13.3: `bin` field symlink escape outside node_modules on
+# install. No npm CLI in the image; nothing ever runs `npm install`
+# with this "package".
+CVE-2019-16775
+
+# npm CLI < 6.13.3: arbitrary file write via crafted `bin` entry on
+# install. Same misdetected extension manifest, same reasoning.
+CVE-2019-16776
+
+# npm CLI < 6.13.4: global node_modules binary overwrite on install.
+# Same misdetected extension manifest, same reasoning.
+CVE-2019-16777

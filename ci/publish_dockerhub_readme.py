@@ -12,10 +12,12 @@ org.opencontainers.image.source), but Docker Hub shows nothing unless
 the repository's `full_description` is set through its HTTP API — the
 registry (push/pull) protocol has no way to carry it. This script fills
 that gap: for every published image (core-* skipped, same rule as the
-catalog), render the exact same per-image section generate_image_readme
-puts in the CI job summary and PATCH it to
-https://hub.docker.com/v2/repositories/<namespace>/<image>/, plus the
-short `description` (Hub caps it at 100 chars) from the manifest.
+catalog), splice the exact same per-image section generate_image_readme
+puts in the CI job summary into the shared boilerplate of
+dockerhub-readme-template.md ({about}/{image} placeholders — the
+template-plus-section pattern kasmtech/workspaces-images uses) and
+PATCH it to https://hub.docker.com/v2/repositories/<namespace>/<image>/,
+plus the short `description` from the manifest.
 
 Reuses generate_image_readme.render() so the Hub overview, the job
 summary and the build matrix can never drift apart. Best-effort by
@@ -45,6 +47,9 @@ import generate_image_readme as gir  # noqa: E402
 import generate_pipeline as gp  # noqa: E402
 
 HUB_API = "https://hub.docker.com/v2"
+TEMPLATE = Path(__file__).resolve().parent / "dockerhub-readme-template.md"
+# Hub rejects full_description over 25000 chars.
+FULL_DESCRIPTION_MAX = 25000
 # Hub rejects `description` over 100 BYTES (not chars — "Exceeded max
 # number of bytes 100", confirmed live: em-dashes/ellipsis are 3 bytes
 # each in UTF-8) with a 400 instead of truncating.
@@ -62,6 +67,17 @@ def api(path: str, payload: dict, token: str | None = None) -> dict:
         req.add_header("Authorization", f"JWT {token}")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.load(resp)
+
+
+def full_readme(v: dict, image_ref: str) -> str:
+    """Shared template + per-image section. render() heading levels are
+    calibrated for a standalone page (H1 title), which is exactly what
+    the Hub overview is — no reindent needed."""
+    out = TEMPLATE.read_text().replace("{about}", gir.render(v, links=False).strip())
+    out = out.replace("{image}", image_ref)
+    if len(out) > FULL_DESCRIPTION_MAX:  # pragma: no cover — template is ~2 KB
+        raise ValueError(f"overview for {image_ref} exceeds {FULL_DESCRIPTION_MAX} chars")
+    return out
 
 
 def short_description(text: str) -> str:
@@ -92,7 +108,7 @@ def main() -> None:
     pushed = 0
     for name, v in sorted(published.items()):
         payload = {
-            "full_description": gir.render(v),
+            "full_description": full_readme(v, f"docker.io/{namespace}/{name}:{v['version']}"),
             "description": short_description(v["description"] or name),
         }
         try:

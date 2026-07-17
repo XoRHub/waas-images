@@ -378,8 +378,12 @@ by `ci/publish_dockerhub_readme.py` (same `catalog` job): GHCR pages
 show this repo's README automatically via
 `org.opencontainers.image.source`, but Docker Hub displays nothing
 unless `full_description` is set through its HTTP API — the registry
-push protocol cannot carry it. Best-effort like the rest of the job: a
-repo not yet mirrored to Hub warns and is skipped.
+push protocol cannot carry it. The overview splices the per-image
+section into `ci/dockerhub-readme-template.md` (`{about}`/`{image}`
+placeholders — shared standalone-quickstart and cosign-verify
+boilerplate, the template-plus-section pattern
+kasmtech/workspaces-images uses). Best-effort like the rest of the
+job: a repo not yet mirrored to Hub warns and is skipped.
 
 Local dev convenience: `make image-docs` prints the same output to
 stdout (no `$GITHUB_STEP_SUMMARY` outside CI).

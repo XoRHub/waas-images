@@ -9,6 +9,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import publish_dockerhub_readme as pdr  # noqa: E402
 
 
+VARIANT = {
+    "name": "demo",
+    "layer": "apps",
+    "os": "ubuntu-noble",
+    "version": "1.0.0",
+    "description": "Demo app.",
+    "smoke": {"vnc": True},
+}
+
+
+class FullReadme(unittest.TestCase):
+    def test_template_has_each_placeholder(self):
+        text = pdr.TEMPLATE.read_text()
+        self.assertEqual(text.count("{about}"), 1)
+        self.assertIn("{image}", text)
+
+    def test_splices_section_and_image_ref(self):
+        out = pdr.full_readme(VARIANT, "docker.io/xorhub/demo:1.0.0")
+        self.assertIn("# Demo app.", out)          # per-image section
+        self.assertIn("**VNC**", out)              # render() content
+        self.assertIn("docker.io/xorhub/demo:1.0.0", out)
+        self.assertNotIn("{about}", out)
+        self.assertNotIn("{image}", out)
+
+    def test_stays_under_hub_cap(self):
+        out = pdr.full_readme(VARIANT, "docker.io/xorhub/demo:1.0.0")
+        self.assertLessEqual(len(out), pdr.FULL_DESCRIPTION_MAX)
+
+
 class ShortDescription(unittest.TestCase):
     def test_short_text_passes_through(self):
         self.assertEqual(pdr.short_description("XFCE desktop"), "XFCE desktop")

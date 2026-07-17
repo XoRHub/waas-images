@@ -51,7 +51,9 @@ PROJECT_URL = "https://github.com/XoRHub/waas-images"
 WAAS_URL = "https://github.com/XoRHub/waas"
 
 
-def render(v: dict, *, heading: str = "#") -> str:
+def render(v: dict, *, heading: str = "#", links: bool = True) -> str:
+    # links=False for the Docker Hub overview, whose template preamble
+    # already carries the project/WaaS links (publish_dockerhub_readme).
     title = v["description"] or v["name"]
     lines = [
         f"{heading} {title}",
@@ -62,10 +64,13 @@ def render(v: dict, *, heading: str = "#") -> str:
     ]
     if v["description"] and v["description"] != title:
         lines += [v["description"], ""]
+    if links:
+        lines += [
+            f"Built by [waas-images]({PROJECT_URL}), deployed by the "
+            f"[WaaS platform]({WAAS_URL}).",
+            "",
+        ]
     lines += [
-        f"Built by [waas-images]({PROJECT_URL}), deployed by the "
-        f"[WaaS platform]({WAAS_URL}).",
-        "",
         f"{heading}# Protocols",
         "",
         "- **VNC** — port `5901`. Required env: `WAAS_DESKTOP_PASSWORD` "

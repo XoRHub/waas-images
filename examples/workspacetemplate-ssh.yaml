@@ -55,3 +55,27 @@ spec:
       userParams: [color-depth, read-only]
   overrides:
     allowedFields: [protocol, protocolParams, resources]
+---
+# The zero-config variant: no Secret, no env — declaring the ssh
+# protocol is the whole opt-in. The waas operator generates a
+# per-workspace ed25519 keypair (public key mounted into the pod,
+# private key handed to guacd at connect), enables sshd, and generates
+# the VNC session password too. Use the explicit template above only
+# when the keys must be known/persistent (ESO/Vault, pod-to-pod ssh).
+apiVersion: waas.xorhub.io/v1alpha1
+kind: WorkspaceTemplate
+metadata:
+  name: dev-ssh-generated
+spec:
+  displayName: "Dev env — SSH (generated keys)"
+  os: linux
+  image: docker.io/xorhub/ubuntu-desktop-noble:2.0.0
+  homeSize: 10Gi
+  protocols:
+    - name: ssh
+      port: 2222
+      default: true
+      userParams: [font-size, color-scheme, read-only]
+    - name: vnc
+      port: 5901
+      userParams: [color-depth, read-only]

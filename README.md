@@ -93,18 +93,22 @@ warning when this mode is active. The value must be exactly `true` or
 unaffected in both modes, and a session password is required in every
 configuration.
 
-**SSH (`WAAS_SSH_ENABLED`, opt-in, OS-only images)**: unlike RDP, SSH
-has no auto-generated fallback credential — there is nothing analogous
-to `WAAS_DESKTOP_PASSWORD` for a keypair — so it defaults to **off**
-even on an image
-built with `INSTALL_SSH=1` (`ubuntu-desktop-noble`, `debian-desktop-13`,
-`fedora-desktop-43`). Set `WAAS_SSH_ENABLED=1` plus
+**SSH (`WAAS_SSH_ENABLED`, opt-in at image level, OS-only images)**:
+the image itself generates no credential, so SSH defaults to **off**
+even on a build with `INSTALL_SSH=1` (`ubuntu-desktop-noble`,
+`debian-desktop-13`, `fedora-desktop-43`) — a bare `docker run` has no
+operator to provide keys. Under the **platform**, declaring the `ssh`
+protocol on a template is enough: the operator generates a
+per-workspace keypair, mounts the public key and sets
+`WAAS_SSH_ENABLED=1` + `WAAS_SSH_AUTHORIZED_KEYS_FILE` itself (see
+waas `docs/templates-and-protocols.md` § Credentials). Standalone or
+with admin-managed keys, set `WAAS_SSH_ENABLED=1` plus
 `WAAS_SSH_AUTHORIZED_KEYS` (or `WAAS_SSH_AUTHORIZED_KEYS_FILE`) from a
-Secret to opt in; the entrypoint refuses to start SSH without an
-authorized key, and refuses to even try on an image that was never
-built with `INSTALL_SSH=1` (no `sshd` binary present). Publickey
-authentication only — the unprivileged `sshd` cannot read
-`/etc/shadow`, so password auth is impossible by construction.
+Secret; the entrypoint refuses to start SSH without an authorized key,
+and refuses to even try on an image that was never built with
+`INSTALL_SSH=1` (no `sshd` binary present). Publickey authentication
+only — the unprivileged `sshd` cannot read `/etc/shadow`, so password
+auth is impossible by construction.
 
 **Secrets**: nothing is baked into images; the password arrives via env
 at runtime. Today the api-server reads the guacd-side password from the
@@ -252,8 +256,11 @@ Its api-server's `CatalogSyncWorker` periodically fetches catalog files —
 `{image, os, app, version, icon, displayName}` lists, plus
 `profile`/`recommended` deployment hints on `catalog-waas-images.yaml`
 entries (see Design notes below), under
-`apiVersion: waas.xorhub.io/catalog/v1` (full contract: TODO — link
-published docs once available) — directly from this repo's `main`
+`apiVersion: waas.xorhub.io/catalog/v1` (full contract: the JSON
+Schema at
+[shared/catalog/schema/v1.schema.json](https://github.com/XoRHub/waas/blob/main/shared/catalog/schema/v1.schema.json)
+in the waas repo — `ci/schema/v1.schema.json` here is its vendored,
+drift-checked copy) — directly from this repo's `main`
 branch (Contents API or raw URL, e.g.
 `https://raw.githubusercontent.com/XoRHub/waas-images/main/catalog-waas-images.yaml`).
 No GitHub Release involved: `main` is the only source of truth, one

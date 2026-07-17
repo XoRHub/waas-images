@@ -130,10 +130,11 @@ ENV WAAS_USER=${WAAS_USER} \
     # password. Only an explicit WAAS_RDP_AUTH_ENABLED=false at runtime —
     # never a build — turns it off (see waas-entrypoint / README).
     WAAS_RDP_AUTH_ENABLED=true \
-    # Always off regardless of INSTALL_SSH — no auto-generated fallback
-    # credential exists for SSH the way WAAS_DESKTOP_PASSWORD covers
-    # VNC/RDP, so a template must opt in explicitly with
-    # WAAS_SSH_AUTHORIZED_KEYS(_FILE).
+    # Always off regardless of INSTALL_SSH — the image generates no
+    # credential, so it never assumes an operator meant to expose it.
+    # The waas operator flips this on (with generated keys) when a
+    # template declares the ssh protocol; standalone runs opt in with
+    # WAAS_SSH_ENABLED=1 + WAAS_SSH_AUTHORIZED_KEYS(_FILE).
     WAAS_SSH_ENABLED=0 \
     WAAS_SSH_PORT=2222 \
     WAAS_AUDIO_ENABLED=1 \

@@ -4,9 +4,11 @@
 #
 # Unlike apps/dev-ssh (SSH is the whole point of that image, default ON),
 # this base-layer copy defaults OFF even when installed (INSTALL_SSH=1):
-# there is no auto-generated fallback credential for SSH the way there
-# is for the desktop's WAAS_DESKTOP_PASSWORD, so a general-purpose image
-# must never assume an operator meant to expose it.
+# the IMAGE generates no credential, so it must never assume an operator
+# meant to expose it. The platform side is different: when a template
+# declares the ssh protocol with no explicit source, the waas operator
+# generates a per-workspace keypair and sets WAAS_SSH_ENABLED=1 +
+# WAAS_SSH_AUTHORIZED_KEYS_FILE itself — this script just consumes them.
 #
 # Secrets are runtime-only, matching the base image contract:
 #   WAAS_SSH_AUTHORIZED_KEYS       inline authorized_keys content (env from

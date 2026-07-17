@@ -70,9 +70,10 @@ is enforced, so the list is verifiable, not aspirational.
       smoke test runs `pactl info` against tcp:4713.
 - [x] **SSH, when built in, is publickey-only and off by default**
       (`INSTALL_SSH=1` bakes an unprivileged `sshd`; `WAAS_SSH_ENABLED`
-      still defaults to `0` even then — there is no auto-generated
-      fallback credential the way `WAAS_DESKTOP_PASSWORD` has one, so a desktop image
-      must never assume an operator meant to expose it). Password
+      still defaults to `0` even then — the IMAGE generates no
+      credential, so it must never assume an operator meant to expose
+      it; the platform, when a template declares ssh, generates the
+      keypair and flips the toggle itself). Password
       authentication is impossible by construction: the unprivileged
       `sshd` cannot read `/etc/shadow`. The entrypoint refuses to start
       with `WAAS_SSH_ENABLED=1` and no authorized key, and refuses to

@@ -1,11 +1,11 @@
 apiVersion: waas.xorhub.io/catalog/v1
 images:
-- image: docker.io/xorhub/chrome:2.0.0
+- image: docker.io/xorhub/chrome:2.0.1
   os: linux
   app: chrome
-  version: 2.0.0
+  version: 2.0.1
   icon: google-chrome
-  displayName: XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint pinned),…
+  displayName: Google Chrome (dl.google.com APT repo, fingerprint pinned) in a single-app…
   architectures:
   - amd64
   profile: hardened
@@ -34,10 +34,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/debian-desktop-13:2.0.0
+- image: docker.io/xorhub/debian-desktop-13:2.0.1
   os: linux
   app: debian-desktop-13
-  version: 2.0.0
+  version: 2.0.1
   icon: debian-linux
   displayName: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
   architectures:
@@ -92,10 +92,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/devtools:2.0.0
+- image: docker.io/xorhub/devtools:2.0.1
   os: linux
   app: devtools
-  version: 2.0.0
+  version: 2.0.1
   icon: visual-studio-code
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
   architectures:
@@ -126,10 +126,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/devtools-dev:2.0.0
+- image: docker.io/xorhub/devtools-dev:2.0.1
   os: linux
   app: devtools-dev
-  version: 2.0.0
+  version: 2.0.1
   icon: visual-studio-code
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
   architectures:
@@ -157,10 +157,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/fedora-desktop-43:2.0.0
+- image: docker.io/xorhub/fedora-desktop-43:2.0.1
   os: linux
   app: fedora-desktop-43
-  version: 2.0.0
+  version: 2.0.1
   icon: fedora
   displayName: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
   architectures:
@@ -215,12 +215,12 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/firefox:2.0.0
+- image: docker.io/xorhub/firefox:2.0.1
   os: linux
   app: firefox
-  version: 2.0.0
+  version: 2.0.1
   icon: firefox
-  displayName: XFCE desktop with managed, policy-hardened Firefox.
+  displayName: Managed, policy-hardened Firefox in a single-app kiosk session — the browser…
   architectures:
   - amd64
   profile: hardened
@@ -249,12 +249,12 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/libreoffice:2.0.0
+- image: docker.io/xorhub/libreoffice:2.0.1
   os: linux
   app: libreoffice
-  version: 2.0.0
+  version: 2.0.1
   icon: libreoffice
-  displayName: XFCE desktop with LibreOffice (Ubuntu main packages, no third-party repo),…
+  displayName: LibreOffice (Ubuntu main packages, no third-party repo) in a single-app kiosk…
   architectures:
   - amd64
   - arm64
@@ -284,10 +284,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/ubuntu-desktop-noble:2.0.0
+- image: docker.io/xorhub/ubuntu-desktop-noble:2.0.1
   os: linux
   app: ubuntu-desktop-noble
-  version: 2.0.0
+  version: 2.0.1
   icon: ubuntu-linux
   displayName: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
   architectures:

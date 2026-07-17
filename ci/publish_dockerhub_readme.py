@@ -45,8 +45,10 @@ import generate_image_readme as gir  # noqa: E402
 import generate_pipeline as gp  # noqa: E402
 
 HUB_API = "https://hub.docker.com/v2"
-# Hub rejects `description` over 100 chars (400) instead of truncating.
-SHORT_DESCRIPTION_MAX = 100
+# Hub rejects `description` over 100 BYTES (not chars — "Exceeded max
+# number of bytes 100", confirmed live: em-dashes/ellipsis are 3 bytes
+# each in UTF-8) with a 400 instead of truncating.
+SHORT_DESCRIPTION_MAX_BYTES = 100
 
 
 def api(path: str, payload: dict, token: str | None = None) -> dict:
@@ -64,9 +66,12 @@ def api(path: str, payload: dict, token: str | None = None) -> dict:
 
 def short_description(text: str) -> str:
     text = " ".join(text.split())
-    if len(text) <= SHORT_DESCRIPTION_MAX:
+    if len(text.encode()) <= SHORT_DESCRIPTION_MAX_BYTES:
         return text
-    return text[: SHORT_DESCRIPTION_MAX - 1] + "…"
+    # Reserve 3 bytes for "…"; byte-slicing may split a multibyte char,
+    # errors="ignore" drops the dangling partial sequence.
+    cut = text.encode()[: SHORT_DESCRIPTION_MAX_BYTES - 3]
+    return cut.decode("utf-8", errors="ignore").rstrip() + "…"
 
 
 def main() -> None:

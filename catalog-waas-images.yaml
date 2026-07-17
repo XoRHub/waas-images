@@ -6,6 +6,8 @@ images:
   version: 2.0.0
   icon: google-chrome
   displayName: XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint pinned),…
+  architectures:
+  - amd64
   profile: hardened
   recommended:
     podSecurityContext:
@@ -38,6 +40,9 @@ images:
   version: 2.0.0
   icon: debian-linux
   displayName: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
+  architectures:
+  - amd64
+  - arm64
   profile: hardened
   recommended:
     podSecurityContext:
@@ -93,6 +98,8 @@ images:
   version: 2.0.0
   icon: visual-studio-code
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
+  architectures:
+  - amd64
   profile: hardened
   recommended:
     podSecurityContext:
@@ -125,6 +132,8 @@ images:
   version: 2.0.0
   icon: visual-studio-code
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
+  architectures:
+  - amd64
   profile: normal
   recommended:
     podSecurityContext:
@@ -154,6 +163,9 @@ images:
   version: 2.0.0
   icon: fedora
   displayName: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
+  architectures:
+  - amd64
+  - arm64
   profile: hardened
   recommended:
     podSecurityContext:
@@ -209,6 +221,8 @@ images:
   version: 2.0.0
   icon: firefox
   displayName: XFCE desktop with managed, policy-hardened Firefox.
+  architectures:
+  - amd64
   profile: hardened
   recommended:
     podSecurityContext:
@@ -241,6 +255,9 @@ images:
   version: 2.0.0
   icon: libreoffice
   displayName: XFCE desktop with LibreOffice (Ubuntu main packages, no third-party repo),…
+  architectures:
+  - amd64
+  - arm64
   profile: hardened
   recommended:
     podSecurityContext:
@@ -273,6 +290,9 @@ images:
   version: 2.0.0
   icon: ubuntu-linux
   displayName: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
+  architectures:
+  - amd64
+  - arm64
   profile: hardened
   recommended:
     podSecurityContext:

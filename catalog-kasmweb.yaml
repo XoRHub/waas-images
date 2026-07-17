@@ -6,9 +6,13 @@ images:
   version: 1.19.0
   icon: terminal
   displayName: Kasm Terminal
+  architectures:
+  - amd64
 - image: docker.io/kasmweb/firefox:1.19.0
   os: linux
   app: firefox
   version: 1.19.0
   icon: firefox
   displayName: Kasm Firefox
+  architectures:
+  - amd64

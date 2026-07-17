@@ -271,7 +271,7 @@ path filter anyway.
 | Catalog | Generator | When |
 |---|---|---|
 | `catalog-waas-images.yaml` — the images this repo builds | `ci/generate_catalog.py` (reuses `generate_pipeline.py`'s manifest discovery — the catalog cannot drift from the build matrix) | `build.yml`'s `catalog` job, every default-branch run, after `build`/`merge` |
-| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script only resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable) | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
+| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable, then derives `architectures`/`profile`/`recommended` — see Design notes below) | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
 
 Both files are committed via the Contents API (`ci/commit_catalog.sh`),
 not `git push`: `main` requires verified signatures and a bot's plain
@@ -324,15 +324,31 @@ Design notes:
   `recommended` block, both derived from this repo's own
   `manifest.yaml`/`HARDENING.md` doctrine (`ci/generate_catalog.py`'s
   `RECOMMENDATION_STANDARD`/`RECOMMENDATION_DEV` + a `smoke:`-driven
-  `env` hint list) — never hand-written. `catalog-kasmweb.yaml` has
-  neither: those upstream images have no local manifest/doctrine to
-  derive from.
+  `env` hint list) — never hand-written. `catalog-kasmweb.yaml` entries
+  carry the same two fields, but since those upstream images have no
+  local manifest/doctrine to derive a profile from statically,
+  `ci/generate_kasm_catalog.py --probe-hardening` (`catalog-kasmweb.yml`
+  only — too slow/Docker-dependent for `make catalogs`) derives them
+  empirically: `ci/probe_kasm_hardening.sh` actually pulls+runs each
+  resolved image under increasingly strict Docker flags (the same
+  technique `ci/smoke_test.sh` uses on this repo's own images) and sets
+  `profile: hardened`/`normal` from whether it survives
+  `readOnlyRootFilesystem`/`cap-drop ALL`. A `normal` verdict's
+  `recommended` only claims the documented Kasm baseline
+  (`runAsNonRoot`/`runAsUser`/`fsGroup: 1000`) — no
+  `securityContext`/`volumes` claim beyond what was actually verified.
+  Probing a given `image:version` again is skipped once
+  `catalog-kasmweb.yaml` already has a verdict for that exact ref (see
+  `previous` in `ci/generate_kasm_catalog.py`'s `catalog()`).
 - `architectures` (waas's per-image nodeSelector prefill hint) is
-  derived from the build matrix (`archs:`) on `catalog-waas-images.yaml`
-  — never hand-written, same doctrine as `profile`/`recommended` — but
-  hand-curated in `kasm/catalog-mapping.yaml` for `catalog-kasmweb.yaml`
-  (kasmweb's plain `X.Y.Z` tags carry no per-arch signal to derive
-  from; they are amd64-only manifests). Omitted = unknown, waas falls
+  derived from the build matrix (`archs:`) on `catalog-waas-images.yaml`,
+  and from Docker Hub's per-tag manifest-list data
+  (`ci/generate_kasm_catalog.py`'s `hub_architectures()`) on
+  `catalog-kasmweb.yaml` — never hand-written on either file. (A
+  hand-curated `architectures:` field used to live in
+  `kasm/catalog-mapping.yaml` and drifted stale — it claimed kasmweb's
+  plain `X.Y.Z` tags were amd64-only, which live Hub data disproved:
+  they're multi-arch manifest lists.) Omitted = unknown, waas falls
   back to the entry-level `spec.architectures` hint.
 
 ## Per-image docs

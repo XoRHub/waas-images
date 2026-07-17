@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  openbox kiosk config for waas single-app mode (waas-session, WAAS_APP).
+
+  Kasm-style: every normal window is undecorated and maximised, so the
+  app fills the screen edge to edge and nothing behind it is visible or
+  reachable — no keybindings (no Alt-Tab), no root menu, one desktop.
+  Dialogs (type="dialog": print, file pickers) are deliberately NOT
+  matched: they keep decorations and float above the app, and the
+  Titlebar mouse bindings below exist solely so they can be dragged.
+-->
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <focus>
+    <focusNew>yes</focusNew>
+    <followMouse>no</followMouse>
+  </focus>
+
+  <desktops>
+    <number>1</number>
+  </desktops>
+
+  <placement>
+    <policy>Smart</policy>
+    <center>yes</center>
+  </placement>
+
+  <!-- Only dialogs ever show decorations; NLC = icon, title, close. -->
+  <theme>
+    <name>Clearlooks</name>
+    <titleLayout>NLC</titleLayout>
+  </theme>
+
+  <!-- Empty on purpose: no shortcuts means no way to switch, cycle or
+       spawn anything the app does not offer itself. -->
+  <keyboard/>
+
+  <mouse>
+    <context name="Titlebar">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+    </context>
+    <context name="Client">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Middle" action="Press">
+        <action name="Focus"/>
+      </mousebind>
+      <mousebind button="Right" action="Press">
+        <action name="Focus"/>
+      </mousebind>
+    </context>
+  </mouse>
+
+  <applications>
+    <application type="normal">
+      <decor>no</decor>
+      <maximized>yes</maximized>
+    </application>
+  </applications>
+</openbox_config>

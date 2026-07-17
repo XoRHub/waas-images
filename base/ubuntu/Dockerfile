@@ -159,7 +159,8 @@ ENV WAAS_USER=${WAAS_USER} \
     # ENV default: their defaults live in the entrypoint, because an
     # always-set WAAS_* value would defeat the legacy aliases
     # (VNC_RESOLUTION / VNC_COL_DEPTH — WAAS_* wins when both are set).
-    WAAS_STARTUP=
+    WAAS_STARTUP= \
+    WAAS_APP=
 
 USER ${WAAS_UID}:${WAAS_GID}
 WORKDIR /home/waas_user

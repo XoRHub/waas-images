@@ -5,7 +5,7 @@
 # pipeline — registry/core-ubuntu-noble-full:<version>-<sha>
 # (ubuntu-desktop-noble), registry/core-debian-13-full:<version>-<sha>
 # (debian-desktop-13), or registry/core-ubuntu-noble:<version>-<sha>
-# (core-ubuntu-noble-xfce, the VNC-only apps/* parent) — so a layer
+# (core-ubuntu-noble-xfce, the VNC-only devtools parent) — so a layer
 # change propagates through the whole tree in one pipeline run. RDP/SSH
 # capability is entirely inherited from whichever core parent this is
 # built FROM; this Dockerfile only ever installs the desktop environment.

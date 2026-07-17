@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
-# waas ubuntu-firefox — XFCE desktop with a managed Firefox.
+# waas ubuntu-firefox — managed Firefox in a single-app kiosk session.
 #
 # Firefox comes from the Mozilla APT repository (packages.mozilla.org):
 # Ubuntu 24.04 only ships Firefox as a snap, which cannot run in an
@@ -50,7 +50,9 @@ RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true
 # non-overridable by the user (Mozilla debs read /etc/firefox/policies).
 COPY policies.json /etc/firefox/policies/policies.json
 
-# Auto-start Firefox in the XFCE session (XDG autostart).
-COPY waas-app.desktop /etc/xdg/autostart/waas-app.desktop
+# Session contract with the base entrypoint: WAAS_APP puts waas-session
+# in single-app kiosk mode — openbox undecorates and maximises the app,
+# no desktop, no keybindings; the app is the session process.
+ENV WAAS_APP="firefox"
 
 USER 1000:1000

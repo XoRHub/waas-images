@@ -25,12 +25,13 @@ is enforced, so the list is verifiable, not aspirational.
       from the XFCE layer.
 - [x] **App-dedicated images carry no remote-desktop surface beyond
       VNC**: every `apps/*` image is built on the VNC-only
-      `core-ubuntu-noble-xfce` parent, itself built on the VNC-only
-      `core-ubuntu-noble` core (never the `-full` core, no `xrdp`, no
-      `sshd`) — a single-app desktop can only ever activate VNC, not
+      `core-ubuntu-noble` core (`devtools` on the VNC-only
+      `core-ubuntu-noble-xfce`; never the `-full` core, no `xrdp`, no
+      `sshd`) — a single-app image can only ever activate VNC, not
       merely by runtime toggle but because the binaries themselves are
-      absent.
-      → `desktop/xfce/manifest.yaml`'s `core-ubuntu-noble-xfce` variant;
+      absent. The kiosk session (`WAAS_APP`) removes the desktop too:
+      no panel, no terminal, no WM keybindings behind the app.
+      → `waas-session` + `/etc/waas/openbox-app.rc.xml` (base rootfs);
       verify:
       `docker run --rm <apps-image> sh -c 'command -v xrdp; command -v sshd'`
       — both report not found.

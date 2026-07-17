@@ -41,16 +41,16 @@ python3 -m unittest discover -s ci/tests
 Two paths — pick the declarative one whenever it fits.
 
 **`recipe:` (declarative)** — for an app that's just apt packages plus
-an autostart entry, no Dockerfile at all:
+a session command, no Dockerfile at all:
 
 ```yaml
 name: libreoffice
 layer: apps
 version: "1.0.0"
-from: core-ubuntu-noble-xfce
+from: core-ubuntu-noble
 recipe:
   apt: [libreoffice, libreoffice-gtk3]
-  autostart: libreoffice
+  app: libreoffice
 variants:
   - name: libreoffice
     smoke: { vnc: true }
@@ -76,9 +76,10 @@ packages" (custom repos, non-apt installs, extra services — see
    ```
 2. Add `apps/<name>/manifest.yaml` (`name`, `layer: apps`, `version`,
    `from`, `variants:` with a `smoke:` block).
-3. Autostart: ship `/etc/xdg/autostart/waas-app.desktop` for a
-   full desktop, or set `ENV WAAS_STARTUP="<command>"` for a
-   single-app image on the bare base.
+3. Session: set `ENV WAAS_APP="<command>"` for a single-app kiosk
+   image on the bare base (openbox undecorates + maximises the app, no
+   desktop — how apps/* ship); on the XFCE parent, ship
+   `/etc/xdg/autostart/waas-app.desktop` for a full desktop instead.
 4. Push — `ci/generate_pipeline.py` discovers the new directory
    automatically; nothing else in `images.yaml` or CI config needs
    editing. A new OS/distro instead of a new app needs a new `base/`

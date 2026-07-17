@@ -24,8 +24,8 @@ version: "2.0.0"
 icon: ubuntu-linux
 
 variants:
-  # VNC-only: smallest image, the parent for the apps/* desktop chain
-  # (core-ubuntu-noble-xfce).
+  # VNC-only: smallest image, the direct parent of the apps/* kiosk
+  # images and of core-ubuntu-noble-xfce (the devtools parent).
   - name: core-ubuntu-noble
     buildArgs:
       INSTALL_RDP: "0"

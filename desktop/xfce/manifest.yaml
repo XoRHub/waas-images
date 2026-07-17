@@ -33,11 +33,12 @@ variants:
         WAAS_SSH_ENABLED: "1"
         WAAS_SSH_AUTHORIZED_KEYS: "smoke-placeholder-not-a-real-key"
 
-  # VNC-only desktop, the parent for every apps/* image: no xrdp, no
-  # sshd baked in at all (built from the VNC-only core, not core-full)
-  # — RDP/SSH are structurally absent here, not merely disabled,
-  # because an image dedicated to a single app may only ever activate
-  # VNC. Still "core-" prefixed and therefore never catalogued.
+  # VNC-only desktop, the devtools parent (kiosk apps/* build straight
+  # on core-ubuntu-noble): no xrdp, no sshd baked in at all (built from
+  # the VNC-only core, not core-full) — RDP/SSH are structurally absent
+  # here, not merely disabled, because an image dedicated to one app
+  # may only ever activate VNC. Still "core-" prefixed and therefore
+  # never catalogued.
   - name: core-ubuntu-noble-xfce
     from: core-ubuntu-noble
     smoke:

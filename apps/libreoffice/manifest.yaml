@@ -4,15 +4,15 @@
 name: libreoffice
 layer: apps
 description: >
-  XFCE desktop with LibreOffice (Ubuntu main packages, no third-party
-  repo), auto-started via XDG autostart.
+  LibreOffice (Ubuntu main packages, no third-party repo) in a
+  single-app kiosk session — no desktop behind it.
 version: "2.0.0"
-from: core-ubuntu-noble-xfce
+from: core-ubuntu-noble
 icon: libreoffice
 
 recipe:
   apt: [libreoffice, libreoffice-gtk3]
-  autostart: libreoffice
+  app: libreoffice
 
 variants:
   - name: libreoffice

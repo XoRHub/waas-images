@@ -8,11 +8,12 @@
 name: chrome
 layer: apps
 description: >
-  XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint
-  pinned), auto-started via XDG autostart; the pod is the sandbox
-  boundary (inner Chrome sandbox disabled, Firefox-gap precedent).
+  Google Chrome (dl.google.com APT repo, fingerprint pinned) in a
+  single-app kiosk session — no desktop behind it; the pod is the
+  sandbox boundary (inner Chrome sandbox disabled, Firefox-gap
+  precedent).
 version: "2.0.0"
-from: core-ubuntu-noble-xfce
+from: core-ubuntu-noble
 icon: google-chrome
 
 # Google publishes no arm64 Chrome deb — amd64 only, like the catalog's
@@ -21,7 +22,7 @@ archs: [linux/amd64]
 
 recipe:
   apt: [google-chrome-stable]
-  autostart: google-chrome-stable --no-sandbox
+  app: google-chrome-stable --no-sandbox
   repo:
     url: https://dl.google.com/linux/chrome/deb/
     keyUrl: https://dl.google.com/linux/linux_signing_key.pub

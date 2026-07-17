@@ -1,7 +1,7 @@
 name: firefox
 layer: apps
 description: XFCE desktop with managed, policy-hardened Firefox.
-version: "1.0.0"
+version: "2.0.0"
 from: core-ubuntu-noble-xfce
 icon: firefox
 

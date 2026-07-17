@@ -15,7 +15,7 @@ description: >
   Headless Fedora graphical session (TigerVNC Xvnc + openbox fallback),
   VNC and optional xrdp bridge + sshd, PulseAudio for guacd's VNC audio
   stream, non-root, read-only-rootfs friendly.
-version: "1.0.0"
+version: "2.0.0"
 icon: fedora
 
 variants:

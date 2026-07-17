@@ -2,7 +2,7 @@ name: fedora-desktop
 layer: desktop
 os: fedora-43
 description: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
-version: "1.0.0"
+version: "2.0.0"
 from: core-fedora-43-full
 icon: fedora
 

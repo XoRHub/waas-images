@@ -7,7 +7,7 @@ description: >
   XFCE work desktop with VS Code (Microsoft APT repo, fingerprint
   pinned) and a dev toolchain (git, build-essential, python3, jq,
   tmux, ...). No autostart: VS Code sits in the XFCE menu.
-version: "1.0.0"
+version: "2.0.0"
 from: core-ubuntu-noble-xfce
 icon: visual-studio-code
 

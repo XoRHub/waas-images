@@ -16,7 +16,7 @@ description: >
   Headless apt-based graphical session (TigerVNC Xvnc + openbox
   fallback), VNC and optional xrdp bridge + sshd, PulseAudio for
   guacd's VNC audio stream, non-root, read-only-rootfs friendly.
-version: "1.0.0"
+version: "2.0.0"
 # Picker icon (dashboard-icons slug; the plain "ubuntu"/"debian" slugs
 # do not exist upstream — verified on the CDN, see README). Unused for
 # core-* (never catalogued) but kept as the manifest-level default any

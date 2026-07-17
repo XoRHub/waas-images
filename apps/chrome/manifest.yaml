@@ -11,7 +11,7 @@ description: >
   XFCE desktop with Google Chrome (dl.google.com APT repo, fingerprint
   pinned), auto-started via XDG autostart; the pod is the sandbox
   boundary (inner Chrome sandbox disabled, Firefox-gap precedent).
-version: "1.0.0"
+version: "2.0.0"
 from: core-ubuntu-noble-xfce
 icon: google-chrome
 

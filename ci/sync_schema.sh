@@ -36,7 +36,10 @@ if diff -q "${TMP_SCHEMA}" "${LOCAL_SCHEMA}" >/dev/null 2>&1; then
 fi
 
 cp "${TMP_SCHEMA}" "${LOCAL_SCHEMA}"
-sed -i.bak -E "s/commit \`[0-9a-f]{7,40}\`/commit \`$(echo "${WAAS_SHA}" | cut -c1-12)\`/" "${LOCAL_README}"
+# Anchor on the vendored-from line only: the README also cites other,
+# historical waas commits ("before commit X moved it") that a bare
+# `commit \`sha\`` pattern would clobber.
+sed -i.bak -E "s/(v1\.schema\.json\`, commit \`)[0-9a-f]{7,40}/\1$(echo "${WAAS_SHA}" | cut -c1-12)/" "${LOCAL_README}"
 rm -f "${LOCAL_README}.bak"
 
 echo "${LOCAL_SCHEMA} updated to waas @ ${WAAS_SHA}"

@@ -48,7 +48,7 @@ docker login -u "${CI_PUBLIC_REGISTRY_USER}" -p "${CI_PUBLIC_REGISTRY_PASSWORD}"
 # registry).
 docker buildx inspect waas >/dev/null 2>&1 || \
     docker buildx create --name waas \
-        --driver-opt image=moby/buildkit:v0.31.1 >/dev/null
+        --driver-opt image=moby/buildkit:v0.31.2 >/dev/null
 docker buildx use waas
 
 # QEMU fallback: when this job lands on a runner of another arch (the

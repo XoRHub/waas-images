@@ -51,6 +51,40 @@ Every `apps/*` image is built on the VNC-only `core-ubuntu-noble` core
 never the `-full` core either way) and never ships `xrdp` or `sshd` at
 all: an image dedicated to one app can only ever activate VNC.
 
+## Try it standalone
+
+No platform needed to evaluate an image — it runs under the same
+constraints WaaS enforces in-cluster (non-root, read-only rootfs,
+every capability dropped):
+
+```shell
+docker run --rm -it \
+  --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp --tmpfs /run --tmpfs /home/waas_user:mode=1777 \
+  -p 5901:5901 -e WAAS_DESKTOP_PASSWORD=changeme \
+  docker.io/xorhub/<image>:<version>
+```
+
+Then point any VNC client at `localhost:5901` (password `changeme`).
+
+Published images are multi-arch manifest lists, cosign-signed (keyless
+OIDC) with a CycloneDX SBOM attested to the image itself:
+
+```shell
+cosign verify docker.io/xorhub/<image>:<version> \
+  --certificate-identity-regexp 'github.com/XoRHub/waas-images' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+cosign verify-attestation --type cyclonedx docker.io/xorhub/<image>:<version> \
+  --certificate-identity-regexp 'github.com/XoRHub/waas-images' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+This section and `ci/dockerhub-readme-template.md` are the same
+content on purpose — GHCR package pages render this README (via
+`org.opencontainers.image.source`; GHCR has no per-package README),
+Docker Hub renders the template — and a test locks the command blocks
+together (`ci/tests/test_publish_dockerhub_readme.py`).
+
 ## Contract with the Workspace CR
 
 | Aspect | Value |

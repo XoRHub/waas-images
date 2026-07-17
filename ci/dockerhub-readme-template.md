@@ -1,3 +1,8 @@
+<!-- Paired with README.md § "Try it standalone": GHCR package pages
+render the repo README, Docker Hub renders this template — the command
+blocks must stay identical (locked by
+ci/tests/test_publish_dockerhub_readme.py, {image} <-> the generic
+docker.io/xorhub/<image>:<version> ref). -->
 **Hardened, non-root workspace image for [WaaS](https://github.com/XoRHub/waas) — a self-hosted platform that streams browser-accessible desktops and apps from Kubernetes.**
 
 Source, build pipeline and the durable usage contract (every `WAAS_*` env var, port and protocol): [XoRHub/waas-images](https://github.com/XoRHub/waas-images).

@@ -38,6 +38,24 @@ class FullReadme(unittest.TestCase):
         self.assertLessEqual(len(out), pdr.FULL_DESCRIPTION_MAX)
 
 
+class TemplateReadmeParity(unittest.TestCase):
+    """GHCR package pages render the repo README, Docker Hub renders the
+    template — the shared boilerplate must be byte-identical or the two
+    registries drift apart (the iso contract stated in both files)."""
+
+    GENERIC_REF = "docker.io/xorhub/<image>:<version>"
+
+    def test_every_template_command_block_is_in_readme(self):
+        import re
+
+        readme = (pdr.TEMPLATE.parent.parent / "README.md").read_text()
+        template = pdr.TEMPLATE.read_text().replace("{image}", self.GENERIC_REF)
+        blocks = re.findall(r"```shell\n(.*?)```", template, flags=re.S)
+        self.assertTrue(blocks, "template lost its ```shell blocks")
+        for block in blocks:
+            self.assertIn(block, readme)
+
+
 class ShortDescription(unittest.TestCase):
     def test_short_text_passes_through(self):
         self.assertEqual(pdr.short_description("XFCE desktop"), "XFCE desktop")

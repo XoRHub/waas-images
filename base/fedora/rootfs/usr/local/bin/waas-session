@@ -7,6 +7,19 @@
 # works and to host a single maximised app.
 set -euo pipefail
 
+# Xvnc (supervisord priority 10) starts concurrently and takes a moment
+# to accept connections; nothing below survives starting first. If X is
+# unreachable, dbus-launch --exit-with-session kills its fresh
+# dbus-daemon instantly, and xfce4-session — whose own X connect lands
+# a beat later, when Xvnc IS up — inherits the dead bus address and
+# greets the first connection with an "Unable to contact settings
+# server" dialog. vncconfig would silently die too (no clipboard).
+# xrandr is the probe both variants ship (it is what waas-resize uses).
+for _ in $(seq 1 50); do
+    xrandr --query >/dev/null 2>&1 && break
+    sleep 0.2
+done
+
 # vncconfig bridges the X selection to the RFB clipboard (guac <-> apps).
 vncconfig -nowin &
 

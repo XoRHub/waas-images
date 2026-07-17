@@ -12,7 +12,7 @@ description: >
   single-app kiosk session — no desktop behind it; the pod is the
   sandbox boundary (inner Chrome sandbox disabled, Firefox-gap
   precedent).
-version: "2.0.0"
+version: "2.0.1"
 from: core-ubuntu-noble
 icon: google-chrome
 

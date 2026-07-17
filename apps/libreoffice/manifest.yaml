@@ -6,7 +6,7 @@ layer: apps
 description: >
   LibreOffice (Ubuntu main packages, no third-party repo) in a
   single-app kiosk session — no desktop behind it.
-version: "2.0.0"
+version: "2.0.1"
 from: core-ubuntu-noble
 icon: libreoffice
 

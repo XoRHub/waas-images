@@ -99,7 +99,7 @@ run: build
 		--read-only --cap-drop ALL --security-opt no-new-privileges \
 		--tmpfs /tmp --tmpfs /run --tmpfs /home/waas_user:mode=1777 \
 		-p 15901:5901 -p 13389:3389 \
-		-e VNC_PW=devpassword -e WAAS_RDP_ENABLED=$(if $(findstring full,$(IMAGE)),1,0) \
+		-e WAAS_DESKTOP_PASSWORD=devpassword -e WAAS_RDP_ENABLED=$(if $(findstring full,$(IMAGE)),1,0) \
 		$(TAG)
 
 smoke: build

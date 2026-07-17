@@ -127,17 +127,20 @@ ENV WAAS_USER=${WAAS_USER} \
     WAAS_VNC_ENABLED=1 \
     WAAS_RDP_ENABLED=${INSTALL_RDP} \
     # Secure by default: RDP clients must authenticate with the session
-    # password. Only an explicit RDP_AUTH_ENABLED=false at runtime — never
-    # a build — turns it off (see waas-entrypoint / README).
-    RDP_AUTH_ENABLED=true \
+    # password. Only an explicit WAAS_RDP_AUTH_ENABLED=false at runtime —
+    # never a build — turns it off (see waas-entrypoint / README).
+    WAAS_RDP_AUTH_ENABLED=true \
     # Always off regardless of INSTALL_SSH — no auto-generated fallback
-    # credential exists for SSH the way VNC_PW covers VNC/RDP, so a
-    # template must opt in explicitly with WAAS_SSH_AUTHORIZED_KEYS(_FILE).
+    # credential exists for SSH the way WAAS_DESKTOP_PASSWORD covers
+    # VNC/RDP, so a template must opt in explicitly with
+    # WAAS_SSH_AUTHORIZED_KEYS(_FILE).
     WAAS_SSH_ENABLED=0 \
     WAAS_SSH_PORT=2222 \
     WAAS_AUDIO_ENABLED=1 \
-    VNC_RESOLUTION=1920x1080 \
-    VNC_COL_DEPTH=24 \
+    # WAAS_VNC_RESOLUTION / WAAS_VNC_COL_DEPTH deliberately have NO baked
+    # ENV default: their defaults live in the entrypoint, because an
+    # always-set WAAS_* value would defeat the legacy aliases
+    # (VNC_RESOLUTION / VNC_COL_DEPTH — WAAS_* wins when both are set).
     WAAS_STARTUP=
 
 USER ${WAAS_UID}:${WAAS_GID}

@@ -3,7 +3,7 @@
 #
 # Credentials: none needed. When a template exposes vnc/rdp without an
 # explicit password source, the platform generates a random per-workspace
-# password, injects it into the pod (VNC_PW via secretKeyRef) and
+# password, injects it into the pod (WAAS_DESKTOP_PASSWORD via secretKeyRef) and
 # resolves it server-side at connect time — zero template configuration.
 # For a persistent/known secret instead, set
 # `protocols[].credentialsSecretRef` + env `valueFrom.secretKeyRef` (see
@@ -27,7 +27,7 @@ spec:
     requests: { cpu: 500m, memory: 1Gi }
     limits: { cpu: "2", memory: 4Gi }
   env:
-    - name: VNC_RESOLUTION
+    - name: WAAS_VNC_RESOLUTION
       value: "1920x1080"
   # Optional: opt this OS-only image into SSH (built with INSTALL_SSH=1;
   # off by default even then — README § "Contract with the Workspace

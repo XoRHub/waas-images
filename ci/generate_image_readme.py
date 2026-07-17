@@ -66,16 +66,16 @@ def render(v: dict, *, heading: str = "#") -> str:
         "",
         f"{heading}# Protocols",
         "",
-        "- **VNC** — port `5901`. Required env: `VNC_PW` (session "
-        "password; refuses to start without it). Optional: "
-        "`VNC_RESOLUTION` (default `1920x1080`), `VNC_COL_DEPTH` "
-        "(default `24`).",
+        "- **VNC** — port `5901`. Required env: `WAAS_DESKTOP_PASSWORD` "
+        "(session password; refuses to start without it). Optional: "
+        "`WAAS_VNC_RESOLUTION` (default `1920x1080`), "
+        "`WAAS_VNC_COL_DEPTH` (default `24`).",
     ]
     smoke = v["smoke"]
     if smoke.get("rdp"):
         lines.append(
             "- **RDP** — port `3389`. Set `WAAS_RDP_ENABLED=1` to "
-            "enable. `RDP_AUTH_ENABLED` (default `true`) requires the "
+            "enable. `WAAS_RDP_AUTH_ENABLED` (default `true`) requires the "
             "session password on connect; the runtime-only opt-out "
             "logs a loud warning (see README)."
         )

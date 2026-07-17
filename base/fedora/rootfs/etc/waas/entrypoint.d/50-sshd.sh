@@ -5,8 +5,8 @@
 # Unlike apps/dev-ssh (SSH is the whole point of that image, default ON),
 # this base-layer copy defaults OFF even when installed (INSTALL_SSH=1):
 # there is no auto-generated fallback credential for SSH the way there
-# is for the desktop's VNC_PW, so a general-purpose image must never
-# assume an operator meant to expose it.
+# is for the desktop's WAAS_DESKTOP_PASSWORD, so a general-purpose image
+# must never assume an operator meant to expose it.
 #
 # Secrets are runtime-only, matching the base image contract:
 #   WAAS_SSH_AUTHORIZED_KEYS       inline authorized_keys content (env from

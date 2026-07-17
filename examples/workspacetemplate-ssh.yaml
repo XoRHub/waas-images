@@ -36,7 +36,7 @@ spec:
     - name: WAAS_SSH_AUTHORIZED_KEYS
       valueFrom:
         secretKeyRef: { name: desktop-ssh-credentials, key: authorized-keys }
-    - name: VNC_PW
+    - name: WAAS_DESKTOP_PASSWORD
       valueFrom:
         secretKeyRef: { name: desktop-ssh-credentials, key: password }
   protocols:

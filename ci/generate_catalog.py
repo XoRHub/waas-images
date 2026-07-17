@@ -108,9 +108,8 @@ RECOMMENDATION_DEV = {
 # smoke.<protocol> (variant["smoke"], the same signal build_vars() reads
 # — absent and explicitly False are equivalent everywhere it's read) ->
 # the EnvHint(s) to surface for that protocol. Names as actually present
-# in this repo today (grep RDP_AUTH_ENABLED README.md HARDENING.md
-# base/*/Dockerfile before touching this table — 43-prompt-waas-images-
-# env-naming.md would rename RDP_AUTH_ENABLED if it ever lands).
+# in this repo (WAAS_-prefixed contract; grep the name in README.md
+# HARDENING.md base/*/Dockerfile before touching this table).
 _ENV_HINTS_BY_PROTOCOL = {
     "rdp": [
         {
@@ -122,7 +121,7 @@ _ENV_HINTS_BY_PROTOCOL = {
             "protocols": ["rdp"],
         },
         {
-            "name": "RDP_AUTH_ENABLED",
+            "name": "WAAS_RDP_AUTH_ENABLED",
             "description": "Require the RDP client to present the session "
                             "password. Baked true; an explicit runtime "
                             "false opts out and logs a warning — never a "

@@ -101,7 +101,7 @@ RUN if [ "${INSTALL_SUDO}" = "1" ]; then \
     fi
 
 # Baked profile marker: waas-entrypoint logs a loud warning when it
-# boots a dev-profile image (RDP_AUTH_ENABLED=false precedent). Injected
+# boots a dev-profile image (WAAS_RDP_AUTH_ENABLED=false precedent). Injected
 # by the generator from the variant's profile: key.
 ARG WAAS_PROFILE=standard
 ENV WAAS_PROFILE=${WAAS_PROFILE}

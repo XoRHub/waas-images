@@ -63,7 +63,7 @@ images:
         only); no relevant runtime default to advertise here.
       protocols:
       - rdp
-    - name: RDP_AUTH_ENABLED
+    - name: WAAS_RDP_AUTH_ENABLED
       description: Require the RDP client to present the session password. Baked true; an explicit runtime false opts out
         and logs a warning — never a build-time toggle.
       protocols:
@@ -179,7 +179,7 @@ images:
         only); no relevant runtime default to advertise here.
       protocols:
       - rdp
-    - name: RDP_AUTH_ENABLED
+    - name: WAAS_RDP_AUTH_ENABLED
       description: Require the RDP client to present the session password. Baked true; an explicit runtime false opts out
         and logs a warning — never a build-time toggle.
       protocols:
@@ -298,7 +298,7 @@ images:
         only); no relevant runtime default to advertise here.
       protocols:
       - rdp
-    - name: RDP_AUTH_ENABLED
+    - name: WAAS_RDP_AUTH_ENABLED
       description: Require the RDP client to present the session password. Baked true; an explicit runtime false opts out
         and logs a warning — never a build-time toggle.
       protocols:

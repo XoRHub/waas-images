@@ -46,7 +46,7 @@ class RenderFormat(unittest.TestCase):
     def test_vnc_always_documented(self):
         for v in (self.full, self.vnc_only):
             self.assertIn("**VNC**", gir.render(v))
-            self.assertIn("VNC_PW", gir.render(v))
+            self.assertIn("WAAS_DESKTOP_PASSWORD", gir.render(v))
 
     def test_rdp_only_when_smoke_rdp_true(self):
         self.assertIn("**RDP**", gir.render(self.full))

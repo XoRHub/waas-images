@@ -36,7 +36,7 @@ else
     HARDEN_FLAGS="--read-only --cap-drop ALL --security-opt no-new-privileges"
 fi
 
-ENV_FLAGS="-e VNC_PW=smoketest-$$"
+ENV_FLAGS="-e WAAS_DESKTOP_PASSWORD=smoketest-$$"
 for kv in ${SMOKE_ENV:-}; do
     ENV_FLAGS="${ENV_FLAGS} -e ${kv}"
 done

@@ -188,7 +188,7 @@ class CatalogRecommended(unittest.TestCase):
     def test_env_hints_follow_smoke(self):
         self.assertEqual(
             [h["name"] for h in self.by_app["ubuntu-desktop-full"]["recommended"]["env"]],
-            ["WAAS_RDP_ENABLED", "RDP_AUTH_ENABLED", "WAAS_SSH_ENABLED",
+            ["WAAS_RDP_ENABLED", "WAAS_RDP_AUTH_ENABLED", "WAAS_SSH_ENABLED",
              "WAAS_SSH_AUTHORIZED_KEYS_FILE", "WAAS_AUDIO_ENABLED"])
         self.assertEqual(
             [h["name"] for h in self.by_app["chrome"]["recommended"]["env"]],

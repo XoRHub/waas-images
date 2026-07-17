@@ -253,9 +253,9 @@ into the image:
 WaaS (`waas`) lets a user create a workspace straight from an
 admin-approved registry image, without a per-image WorkspaceTemplate.
 Its api-server's `CatalogSyncWorker` periodically fetches catalog files —
-`{image, os, app, version, icon, displayName}` lists, plus
-`profile`/`recommended` deployment hints on `catalog-waas-images.yaml`
-entries (see Design notes below), under
+`{image, os, app, version, icon, displayName, architectures}` lists,
+plus `profile`/`recommended` deployment hints on
+`catalog-waas-images.yaml` entries (see Design notes below), under
 `apiVersion: waas.xorhub.io/catalog/v1` (full contract: the JSON
 Schema at
 [shared/catalog/schema/v1.schema.json](https://github.com/XoRHub/waas/blob/main/shared/catalog/schema/v1.schema.json)
@@ -326,6 +326,13 @@ Design notes:
   `env` hint list) — never hand-written. `catalog-kasmweb.yaml` has
   neither: those upstream images have no local manifest/doctrine to
   derive from.
+- `architectures` (waas's per-image nodeSelector prefill hint) is
+  derived from the build matrix (`archs:`) on `catalog-waas-images.yaml`
+  — never hand-written, same doctrine as `profile`/`recommended` — but
+  hand-curated in `kasm/catalog-mapping.yaml` for `catalog-kasmweb.yaml`
+  (kasmweb's plain `X.Y.Z` tags carry no per-arch signal to derive
+  from; they are amd64-only manifests). Omitted = unknown, waas falls
+  back to the entry-level `spec.architectures` hint.
 
 ## Per-image docs
 

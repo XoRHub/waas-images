@@ -18,10 +18,11 @@ immutable by CI construction (README § Build matrix & tagging).
 
 Every entry also carries `profile`/`recommended` — waas's deployment
 recommendation fields (wire format: shared/catalog.Entry, vendored
-schema: ci/schema/v1.schema.json). Both are derived locally from data
-already in this repo (variant `profile:`, `smoke:`, HARDENING.md's
-platform-side doctrine) rather than hand-written in any manifest.yaml,
-so they cannot drift from the doctrine they mirror. See
+schema: ci/schema/v1.schema.json) — and `architectures`, waas's
+per-image nodeSelector prefill hint. All are derived locally from data
+already in this repo (variant `profile:`, `smoke:`, `archs:`,
+HARDENING.md's platform-side doctrine) rather than hand-written in any
+manifest.yaml, so they cannot drift from the doctrine they mirror. See
 RECOMMENDATION_STANDARD/RECOMMENDATION_DEV below.
 
 Every entry is normally "{registry}/{variant name}:{variant version}"
@@ -254,6 +255,15 @@ def catalog(
         if v["description"]:
             entry["displayName"] = textwrap.shorten(
                 v["description"], width=80, placeholder="…")
+        # Derived from the build matrix (v["archs"], the exact list the
+        # per-arch build jobs fan out on), never hand-written: the
+        # catalog cannot claim an architecture the pipeline doesn't
+        # build. buildx platform -> wire format: "linux/amd64" ->
+        # "amd64". An empty list (no archs anywhere in the matrix)
+        # omits the field — wire-side that means "unknown", waas falls
+        # back to the entry-level spec.architectures hint.
+        if v["archs"]:
+            entry["architectures"] = [a.split("/", 1)[-1] for a in v["archs"]]
         # Recalculated from the current manifest/HARDENING.md-derived
         # constants every run, exactly like icon/displayName above —
         # never copied from previous[name]. A failed build's fallback

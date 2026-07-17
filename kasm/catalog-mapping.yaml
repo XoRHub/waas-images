@@ -14,15 +14,23 @@
 # Verify https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/<slug>.svg
 # answers 200 before committing — an invalid slug fails nothing here,
 # WaaS just falls back to a generic OS icon silently.
+#
+# architectures: hand-curated like the rest of this file — kasmweb's
+# plain X.Y.Z release tags (the only tags this catalog emits) are
+# amd64-only manifests; their arm64 builds live on separate suffixed
+# tags. Omit the key if genuinely unknown: WaaS treats absent as
+# "unknown" and falls back to the entry-level spec.architectures hint.
 images:
   - name: terminal            # docker.io/kasmweb/terminal
     app: terminal
     icon: terminal            # no gnome-terminal slug upstream; terminal exists
     displayName: "Kasm Terminal"
     knownVersion: "1.19.0"
+    architectures: [amd64]
 
   - name: firefox
     app: firefox
     icon: firefox
     displayName: "Kasm Firefox"
     knownVersion: "1.19.0"
+    architectures: [amd64]

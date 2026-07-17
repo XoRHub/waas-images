@@ -85,6 +85,13 @@ def catalog(mapping: dict) -> dict:
             entry["icon"] = img["icon"]
         if img.get("displayName"):
             entry["displayName"] = img["displayName"]
+        # Hand-curated in the mapping (no per-arch signal exists on
+        # Docker Hub's plain X.Y.Z tags — they are amd64-only
+        # manifests; kasmweb's arm64 builds live on separate suffixed
+        # tags this catalog never emits). Absent = unknown, waas then
+        # falls back to the entry-level spec.architectures hint.
+        if img.get("architectures"):
+            entry["architectures"] = list(img["architectures"])
         images.append(entry)
     return {"apiVersion": API_VERSION, "images": images}
 

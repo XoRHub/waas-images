@@ -15,7 +15,8 @@ import generate_kasm_catalog as gkc  # noqa: E402
 MAPPING = {
     "images": [
         {"name": "terminal", "app": "terminal", "icon": "terminal",
-         "displayName": "Kasm Terminal", "knownVersion": "1.19.0"},
+         "displayName": "Kasm Terminal", "knownVersion": "1.19.0",
+         "architectures": ["amd64"]},
     ]
 }
 
@@ -70,7 +71,17 @@ class Catalog(unittest.TestCase):
             "version": "1.20.0",
             "icon": "terminal",
             "displayName": "Kasm Terminal",
+            "architectures": ["amd64"],
         }])
+
+    def test_missing_architectures_omitted(self):
+        mapping = {"images": [
+            {"name": "chrome", "app": "chrome", "knownVersion": "1.19.0"},
+        ]}
+        with mock.patch.object(gkc, "latest_release_tag",
+                               return_value="1.20.0"):
+            out = gkc.catalog(mapping)
+        self.assertNotIn("architectures", out["images"][0])
 
     def test_network_failure_falls_back_to_known_version(self):
         with mock.patch.object(gkc.urllib.request, "urlopen",

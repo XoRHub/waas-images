@@ -64,11 +64,26 @@ class CatalogFormat(unittest.TestCase):
             "version": "1.1.0",
             "icon": "ubuntu-linux",
             "displayName": "XFCE desktop, VNC + RDP, derived from the apt base-rdp image.",
+            # Build matrix defaults (CFG): linux/amd64 -> amd64.
+            "architectures": ["amd64"],
             # No smoke: on this fixture's variant, so no env hints — but
             # profile/recommended are still always present (total mapping).
             "profile": "hardened",
             "recommended": gc.RECOMMENDATION_STANDARD,
         })
+
+    def test_architectures_follow_variant_archs(self):
+        # A multi-arch variant emits both, buildx platform prefix
+        # stripped; the arch list is per variant, not per manifest.
+        manifests = [dict(
+            MANIFESTS[1],
+            variants=[{"name": "ubuntu-firefox",
+                       "archs": ["linux/amd64", "linux/arm64"]}],
+        )]
+        variants = gp.flatten_variants(manifests, CFG)
+        out = gc.catalog(variants, "reg")
+        self.assertEqual(
+            out["images"][0]["architectures"], ["amd64", "arm64"])
 
     def test_variant_icon_override(self):
         self.assertEqual(self.by_app["debian-xfce"]["icon"], "debian-linux")

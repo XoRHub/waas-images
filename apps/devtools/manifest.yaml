@@ -11,9 +11,8 @@ version: "2.0.1"
 from: core-ubuntu-noble-xfce
 icon: visual-studio-code
 
-# amd64 first: that is the published catalog contract. Microsoft ships
-# arm64 debs too — extending is a catalog decision, not a build one.
-archs: [linux/amd64]
+# packages.microsoft.com/repos/code ships arm64 code debs (verified
+# 2026-07-17) — inherit the default amd64+arm64 matrix.
 
 variants:
   - name: devtools

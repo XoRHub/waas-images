@@ -100,6 +100,7 @@ images:
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
   architectures:
   - amd64
+  - arm64
   profile: hardened
   recommended:
     podSecurityContext:
@@ -134,6 +135,7 @@ images:
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
   architectures:
   - amd64
+  - arm64
   profile: normal
   recommended:
     podSecurityContext:
@@ -223,6 +225,7 @@ images:
   displayName: Managed, policy-hardened Firefox in a single-app kiosk session — the browser…
   architectures:
   - amd64
+  - arm64
   profile: hardened
   recommended:
     podSecurityContext:

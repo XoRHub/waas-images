@@ -154,8 +154,8 @@ Tags are **immutable**:
 
 Multi-arch: `linux/amd64` + `linux/arm64` built NATIVELY on the amd/arm
 runner fleets — no QEMU in the nominal path (per-image override, e.g.
-Firefox is amd64-only until packages.mozilla.org's arm64 debs are
-validated). Pipeline: generate (incl. recipe compilation) →
+Chrome is amd64-only because Google publishes no arm64 deb).
+Pipeline: generate (incl. recipe compilation) →
 hadolint/shellcheck → per image and per arch *build → smoke → push
 `-g<sha>-<arch>` (OCI mediatypes)*, then a merge job assembles the
 annotated manifest list, mirrors it to Docker Hub, cosign-signs the

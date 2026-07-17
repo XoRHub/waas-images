@@ -16,8 +16,8 @@ version: "2.0.1"
 from: core-ubuntu-noble
 icon: google-chrome
 
-# Google publishes no arm64 Chrome deb — amd64 only, like the catalog's
-# firefox entry until proven otherwise.
+# Google publishes no arm64 Chrome deb (dl.google.com Release still
+# says "Architectures: amd64", re-checked 2026-07-17) — amd64 only.
 archs: [linux/amd64]
 
 recipe:

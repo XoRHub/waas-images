@@ -8,6 +8,8 @@
 """Render per-image documentation — one section per published image,
 listing exactly which protocols it supports — into the GitHub Actions
 job summary ($GITHUB_STEP_SUMMARY) of the CI run that built it.
+render() is also what ci/publish_dockerhub_readme.py pushes as each
+Docker Hub repo's overview, so the two can never say different things.
 
 Deliberately NOT committed: with the number of images only growing,
 keeping one hand-synced doc file per image (or even one generator

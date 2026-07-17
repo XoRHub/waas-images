@@ -553,6 +553,12 @@ jobs:
       # script's short stdout confirmation instead of its real output.
       - name: Generate per-image docs (job summary)
         run: uv run ci/generate_image_readme.py
+      # Docker Hub shows no README unless full_description is pushed via
+      # its HTTP API (GHCR gets the repo README for free through the
+      # source label — Hub has no equivalent). Same render as the job
+      # summary above; best-effort like everything else in this job.
+      - name: Publish per-image overviews to Docker Hub
+        run: uv run ci/publish_dockerhub_readme.py
       - name: docker login (docker.io, for the per-image publish check)
         run: docker login -u "${CI_PUBLIC_REGISTRY_USER}" -p "${CI_PUBLIC_REGISTRY_PASSWORD}" "${CI_PUBLIC_REGISTRY}"
       - name: Generate catalog-waas-images.yaml

@@ -373,6 +373,14 @@ env vars, ports, protocols common to every image) lives in this README
 instead — what `org.opencontainers.image.documentation` actually
 points at (§ Image metadata).
 
+The same render is also pushed as each image's **Docker Hub overview**
+by `ci/publish_dockerhub_readme.py` (same `catalog` job): GHCR pages
+show this repo's README automatically via
+`org.opencontainers.image.source`, but Docker Hub displays nothing
+unless `full_description` is set through its HTTP API — the registry
+push protocol cannot carry it. Best-effort like the rest of the job: a
+repo not yet mirrored to Hub warns and is skipped.
+
 Local dev convenience: `make image-docs` prints the same output to
 stdout (no `$GITHUB_STEP_SUMMARY` outside CI).
 

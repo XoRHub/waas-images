@@ -1,7 +1,7 @@
 # Vendored WaaS catalog JSON Schema
 
 `v1.schema.json` is vendored byte-for-byte from the `waas` repo
-(`shared/catalog/schema/v1.schema.json`, commit `a26cd7d79049`) —
+(`shared/catalog/schema/v1.schema.json`, commit `dd9f6cd7beaf`) —
 **`waas` is the source of truth** for the wire format (see its
 `docs/image-catalog.md` § "Wire format and schema"). The schema is
 generated there from the Go structs `catalog.File`/`catalog.Entry`, so

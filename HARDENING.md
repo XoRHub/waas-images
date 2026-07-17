@@ -51,10 +51,10 @@ is enforced, so the list is verifiable, not aspirational.
 - [x] **VNC auth always on** (`-SecurityTypes VncAuth`, `-rfbauth`);
       empty password refuses to start. xrdp: `crypt_level=high`,
       `security_layer=negotiate` with TLS cert (provided or ephemeral).
-- [x] **RDP auth on by default** (`RDP_AUTH_ENABLED=true` baked as ENV,
+- [x] **RDP auth on by default** (`WAAS_RDP_AUTH_ENABLED=true` baked as ENV,
       no build-time opt-out): the RDP client must present the session
       password (`password=ask` bridge). Credential-less RDP requires an
-      explicit `RDP_AUTH_ENABLED=false` at runtime and logs a warning —
+      explicit `WAAS_RDP_AUTH_ENABLED=false` at runtime and logs a warning —
       no image can leave the build with an open RDP.
 - [x] **Audio via an unprivileged PulseAudio** (plain user mode: no
       root, no setuid, no rtkit — same privilege profile as everything
@@ -71,7 +71,7 @@ is enforced, so the list is verifiable, not aspirational.
 - [x] **SSH, when built in, is publickey-only and off by default**
       (`INSTALL_SSH=1` bakes an unprivileged `sshd`; `WAAS_SSH_ENABLED`
       still defaults to `0` even then — there is no auto-generated
-      fallback credential the way `VNC_PW` has one, so a desktop image
+      fallback credential the way `WAAS_DESKTOP_PASSWORD` has one, so a desktop image
       must never assume an operator meant to expose it). Password
       authentication is impossible by construction: the unprivileged
       `sshd` cannot read `/etc/shadow`. The entrypoint refuses to start
@@ -135,7 +135,7 @@ exactly this profile.
 Guard rails: the pipeline generator refuses `INSTALL_SUDO=1` on a
 variant whose name lacks the `-dev` suffix or whose `profile:` is not
 `dev`; the image bakes `WAAS_PROFILE=dev` and the entrypoint logs a
-loud boot warning (`RDP_AUTH_ENABLED=false` precedent); the catalog
+loud boot warning (`WAAS_RDP_AUTH_ENABLED=false` precedent); the catalog
 entry must keep its `allowedGroups` gate (platform-side, documented
 contract — same list as the standard `devtools`).
 

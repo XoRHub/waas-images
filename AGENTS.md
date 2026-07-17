@@ -48,7 +48,7 @@ without the user explicitly asking, and flag it back if a change would:
   time. Final `USER` must stay `1000:1000` (`waas_user`), configurable
   only via the `WAAS_UID`/`WAAS_GID`/`WAAS_USER` build args.
 - Require write access outside `/home/waas_user`, `/tmp`, `/run`.
-- Turn `RDP_AUTH_ENABLED` off at build time (no such build arg exists on
+- Turn `WAAS_RDP_AUTH_ENABLED` off at build time (no such build arg exists on
   purpose — README § "Contract with the Workspace CR" explains why; the
   only opt-out is the runtime env, and it logs a loud warning).
 - Bake a secret/password into an image layer — passwords always arrive

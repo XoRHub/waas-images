@@ -62,19 +62,30 @@ dedicated to one app can only ever activate VNC.
 | Writable paths | `/home/waas_user` (PVC), `/tmp`, `/run` (emptyDirs) — everything else read-only-safe |
 | Init hook | optional ConfigMap mounted at `/etc/waas/init.d/` — `*.sh` sourced at boot after the image's own `entrypoint.d/` hooks (UID 1000, no privilege change; see HARDENING.md) |
 | Dev profile | `-dev` tags only (e.g. `devtools-dev`): sudo NOPASSWD baked, `WAAS_PROFILE=dev` warning at boot; pod must set `readOnlyRootFilesystem: false`, `allowPrivilegeEscalation: true` AND keep the runtime default capability set (cap-drop ALL keeps sudo dead); keep the catalog `allowedGroups` gate (HARDENING.md § Reduced profile) |
-| Required env | `VNC_PW` — one shared session password. **Refuses to start without it.** Standalone `docker run` only: `RDP_PASSWORD` is accepted as a fallback (`VNC_PW` wins when both are set); under the platform the operator always injects `VNC_PW`. |
-| Optional env | `VNC_RESOLUTION` (`1920x1080`), `VNC_COL_DEPTH` (`24`), `WAAS_VNC_ENABLED` (`1`), `WAAS_RDP_ENABLED`, `RDP_AUTH_ENABLED` (`true`), `WAAS_SSH_ENABLED` (`0`), `WAAS_SSH_AUTHORIZED_KEYS`/`_FILE` (required once SSH is enabled), `WAAS_SSH_HOST_KEY_FILE` (stable host identity), `WAAS_STARTUP` (session command), `WAAS_TLS_CERT`/`WAAS_TLS_KEY` (mounted RDP cert) |
+| Required env | `WAAS_DESKTOP_PASSWORD` — one session password shared by VNC and RDP (the xrdp bridge forwards it, so they cannot differ). **Refuses to start without it.** The legacy names `VNC_PW`/`RDP_PASSWORD` are refused with an explicit error (see § Env naming). |
+| Optional env | `WAAS_VNC_RESOLUTION` (`1920x1080`), `WAAS_VNC_COL_DEPTH` (`24`), `WAAS_VNC_ENABLED` (`1`), `WAAS_RDP_ENABLED`, `WAAS_RDP_AUTH_ENABLED` (`true`), `WAAS_SSH_ENABLED` (`0`), `WAAS_SSH_AUTHORIZED_KEYS`/`_FILE` (required once SSH is enabled), `WAAS_SSH_HOST_KEY_FILE` (stable host identity), `WAAS_STARTUP` (session command), `WAAS_TLS_CERT`/`WAAS_TLS_KEY` (mounted RDP cert) |
 | Recommended pod securityContext | `runAsNonRoot`, `runAsUser/fsGroup: 1000`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault` → PodSecurity **restricted** compliant |
 
 See `examples/workspacetemplate-xfce.yaml` for a complete template.
 
-**RDP authentication (`RDP_AUTH_ENABLED`, default `true`)**: images are
-secure by default — every build ships with RDP client authentication ON
-(`ENV RDP_AUTH_ENABLED=true` in the base image), meaning the RDP client
-must present the session password, which the xrdp bridge forwards to
-Xvnc (`password=ask`). There is no build argument to turn it off: an
+**Env naming**: every variable these images interpret at runtime is
+`WAAS_`-prefixed — that is the whole contract, no exceptions. Build
+`ARG`s (`INSTALL_*`, `*_VERSION`, base image pins) are a separate,
+build-only namespace and deliberately stay unprefixed. Coming from the
+headless-VNC container ecosystem (ConSol, accetto, kasm):
+
+| Legacy name | Here | Behavior if set |
+|---|---|---|
+| `VNC_PW`, `RDP_PASSWORD` | `WAAS_DESKTOP_PASSWORD` | **Refused** — startup fails with the new name in the message. Secret-bearing names get no silent alias: the platform only recognizes `WAAS_DESKTOP_PASSWORD` as an explicit source, so honoring the old name here would let a generated password silently shadow yours. |
+| `VNC_RESOLUTION`, `VNC_COL_DEPTH` | `WAAS_VNC_RESOLUTION`, `WAAS_VNC_COL_DEPTH` | **Honored as fallback alias** (cosmetic, never read by the platform); `WAAS_*` wins when both are set, and a log line nudges toward the new name. |
+
+**RDP authentication (`WAAS_RDP_AUTH_ENABLED`, default `true`)**: images
+are secure by default — every build ships with RDP client authentication
+ON (`ENV WAAS_RDP_AUTH_ENABLED=true` in the base image), meaning the RDP
+client must present the session password, which the xrdp bridge forwards
+to Xvnc (`password=ask`). There is no build argument to turn it off: an
 image can never leave the pipeline with an open RDP. The only opt-out is
-the **runtime** env `RDP_AUTH_ENABLED=false` (lab/dev setups behind
+the **runtime** env `WAAS_RDP_AUTH_ENABLED=false` (lab/dev setups behind
 their own gate): the bridge then authenticates to Xvnc itself and any
 client reaching `:3389` gets the session — the entrypoint logs a loud
 warning when this mode is active. The value must be exactly `true` or
@@ -84,7 +95,8 @@ configuration.
 
 **SSH (`WAAS_SSH_ENABLED`, opt-in, OS-only images)**: unlike RDP, SSH
 has no auto-generated fallback credential — there is nothing analogous
-to `VNC_PW` for a keypair — so it defaults to **off** even on an image
+to `WAAS_DESKTOP_PASSWORD` for a keypair — so it defaults to **off**
+even on an image
 built with `INSTALL_SSH=1` (`ubuntu-desktop-noble`, `debian-desktop-13`,
 `fedora-desktop-43`). Set `WAAS_SSH_ENABLED=1` plus
 `WAAS_SSH_AUTHORIZED_KEYS` (or `WAAS_SSH_AUTHORIZED_KEYS_FILE`) from a

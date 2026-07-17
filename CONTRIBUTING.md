@@ -111,7 +111,7 @@ rootfs, `--cap-drop ALL`, no-new-privileges, suid sweep, trivy
 vuln/secret scan). In particular:
 
 - Images run as `waas_user` (UID/GID 1000) with no path to root.
-- RDP client authentication (`RDP_AUTH_ENABLED`) is on by default and
+- RDP client authentication (`WAAS_RDP_AUTH_ENABLED`) is on by default and
   has no build-time opt-out — only a runtime env can disable it, and
   that logs a warning. Don't add a build arg that bypasses this.
 - No secrets baked into layers; passwords arrive via runtime env only.

@@ -121,7 +121,7 @@ if [ "${PUBLISH_VERSION}" = "1" ]; then
         # Registry auth via flags: the job's ~/.docker is not visible to a
         # container started on the dind daemon, so mounting it cannot work.
         docker run --rm -e COSIGN_PRIVATE_KEY -e COSIGN_PASSWORD \
-            ghcr.io/sigstore/cosign/cosign:v3.1.1 sign --yes \
+            ghcr.io/sigstore/cosign/cosign:v3.1.2 sign --yes \
             --key env://COSIGN_PRIVATE_KEY \
             --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
             --registry-password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
@@ -131,7 +131,7 @@ if [ "${PUBLISH_VERSION}" = "1" ]; then
         log "cosign sign (keyless OIDC)"
         docker run --rm \
             -e ACTIONS_ID_TOKEN_REQUEST_TOKEN -e ACTIONS_ID_TOKEN_REQUEST_URL \
-            ghcr.io/sigstore/cosign/cosign:v3.1.1 sign --yes \
+            ghcr.io/sigstore/cosign/cosign:v3.1.2 sign --yes \
             --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
             --registry-password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
             -a revision="${CI_COMMIT_SHA}" \
@@ -173,7 +173,7 @@ attach_sbom() {
     log "cosign attest (cyclonedx sbom)"
     if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then
         docker run --rm -v "$(pwd):/work" -w /work -e COSIGN_PRIVATE_KEY -e COSIGN_PASSWORD \
-            ghcr.io/sigstore/cosign/cosign:v3.1.1 attest --yes \
+            ghcr.io/sigstore/cosign/cosign:v3.1.2 attest --yes \
             --key env://COSIGN_PRIVATE_KEY \
             --predicate sbom.cdx.json --type cyclonedx \
             --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
@@ -182,7 +182,7 @@ attach_sbom() {
     elif [ "${COSIGN_KEYLESS:-0}" = "1" ]; then
         docker run --rm -v "$(pwd):/work" -w /work \
             -e ACTIONS_ID_TOKEN_REQUEST_TOKEN -e ACTIONS_ID_TOKEN_REQUEST_URL \
-            ghcr.io/sigstore/cosign/cosign:v3.1.1 attest --yes \
+            ghcr.io/sigstore/cosign/cosign:v3.1.2 attest --yes \
             --predicate sbom.cdx.json --type cyclonedx \
             --registry-username "${CI_PUBLIC_REGISTRY_USER}" \
             --registry-password "${CI_PUBLIC_REGISTRY_PASSWORD}" \

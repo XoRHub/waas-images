@@ -96,7 +96,20 @@ def main() -> None:
             # 404: never mirrored to Hub yet — expected for brand-new
             # images until their first merge job runs. Anything else is
             # still only worth a warning (see docstring).
-            print(f"WARNING: {namespace}/{name}: HTTP {exc.code} — skipped", file=sys.stderr)
+            body = exc.read().decode(errors="replace")[:200]
+            print(f"WARNING: {namespace}/{name}: HTTP {exc.code} {body} — skipped", file=sys.stderr)
+            if exc.code == 403:
+                # Hub accepts a PAT at /users/login but only lets the
+                # resulting JWT edit repo metadata if the PAT has
+                # read/write/DELETE scope (confirmed live, run
+                # 29609992892: read/write PAT → 403 on every PATCH).
+                print(
+                    "HINT: 403 with a working login usually means "
+                    "CI_PUBLIC_REGISTRY_PASSWORD is a Docker Hub PAT "
+                    "without read/write/delete scope — regenerate the "
+                    "PAT with that scope (or use the account password).",
+                    file=sys.stderr,
+                )
         except urllib.error.URLError as exc:
             print(f"WARNING: {namespace}/{name}: {exc} — skipped", file=sys.stderr)
         else:

@@ -38,3 +38,7 @@ images:
     icon: firefox
     displayName: "Kasm Firefox"
     knownVersion: "1.19.0"
+
+  - name: doom            # docker.io/kasmweb/doom
+    app: doom
+    knownVersion: "1.19.0"

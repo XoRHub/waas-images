@@ -1,16 +1,20 @@
 """Tests for ci/generate_kasm_catalog.py with Docker Hub mocked:
 release-tag selection amid kasm's noisy tags, pagination, the
 knownVersion fallback on network failure, per-tag architecture lookup,
-and profile/recommended derivation via an injected hardening probe
-(never a real subprocess/Docker call here). stdlib unittest only."""
+profile/recommended derivation via an injected hardening probe (never a
+real subprocess/Docker call here), and the single-image CLI mode's
+mapping-append/catalog-upsert helpers. stdlib unittest only."""
 import copy
 import io
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 from urllib.error import URLError
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import generate_catalog as gc  # noqa: E402
@@ -187,6 +191,106 @@ class Catalog(unittest.TestCase):
         out = self._catalog(probe=probe, previous=previous)
         probe.assert_called_once_with("docker.io/kasmweb/terminal:1.20.0")
         self.assertEqual(out["images"][0]["profile"], "normal")
+
+
+class AppendMappingEntry(unittest.TestCase):
+    def test_appends_without_disturbing_existing_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mapping.yaml"
+            path.write_text("# a hand-written comment\nimages:\n"
+                            "  - name: terminal\n    app: terminal\n"
+                            "    knownVersion: \"1.19.0\"\n")
+            gkc.append_mapping_entry(path, "vs-code", "1.20.0")
+            text = path.read_text()
+            self.assertIn("# a hand-written comment", text)
+            self.assertIn("- name: terminal", text)
+            self.assertIn("- name: vs-code", text)
+            self.assertIn('knownVersion: "1.20.0"', text)
+            # Still valid YAML with both images present, appended text
+            # didn't break the existing structure.
+            data = yaml.safe_load(text)
+            self.assertEqual([i["name"] for i in data["images"]],
+                             ["terminal", "vs-code"])
+
+
+class ResolveMappingEntry(unittest.TestCase):
+    def test_existing_image_returned_unchanged_no_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mapping.yaml"
+            path.write_text("images:\n  - name: terminal\n    app: terminal\n"
+                            "    knownVersion: \"1.19.0\"\n")
+            before = path.read_text()
+            mapping = {"images": [
+                {"name": "terminal", "app": "terminal", "knownVersion": "1.19.0"},
+            ]}
+            entry = gkc.resolve_mapping_entry(mapping, path, "terminal")
+            self.assertEqual(entry["app"], "terminal")
+            self.assertEqual(path.read_text(), before)  # untouched
+
+    def test_new_image_resolved_live_and_appended(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mapping.yaml"
+            path.write_text("images: []\n")
+            mapping = {"images": []}
+            with mock.patch.object(gkc, "latest_release_tag",
+                                   return_value="1.20.0"):
+                entry = gkc.resolve_mapping_entry(mapping, path, "vs-code")
+            self.assertEqual(entry, {"name": "vs-code", "app": "vs-code",
+                                     "knownVersion": "1.20.0"})
+            self.assertIn("vs-code", path.read_text())
+
+    def test_unresolvable_new_image_exits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mapping.yaml"
+            path.write_text("images: []\n")
+            mapping = {"images": []}
+            with mock.patch.object(gkc, "latest_release_tag",
+                                   return_value=None):
+                with self.assertRaises(SystemExit):
+                    gkc.resolve_mapping_entry(mapping, path, "not-a-real-image")
+
+
+class UpsertEntry(unittest.TestCase):
+    def test_replaces_matching_app_preserves_others(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "catalog-kasmweb.yaml"
+            path.write_text(
+                "apiVersion: waas.xorhub.io/catalog/v1\n"
+                "images:\n"
+                "- image: docker.io/kasmweb/terminal:1.19.0\n"
+                "  app: terminal\n"
+                "- image: docker.io/kasmweb/firefox:1.19.0\n"
+                "  app: firefox\n")
+            new_terminal = {"image": "docker.io/kasmweb/terminal:1.20.0",
+                            "app": "terminal"}
+            out = gkc.upsert_entry(path, new_terminal)
+            apps = [i["app"] for i in out["images"]]
+            self.assertEqual(apps, ["terminal", "firefox"])  # order preserved
+            self.assertEqual(
+                out["images"][0]["image"], "docker.io/kasmweb/terminal:1.20.0")
+            self.assertEqual(
+                out["images"][1]["image"], "docker.io/kasmweb/firefox:1.19.0")
+
+    def test_appends_new_app(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "catalog-kasmweb.yaml"
+            path.write_text(
+                "apiVersion: waas.xorhub.io/catalog/v1\n"
+                "images:\n- image: docker.io/kasmweb/terminal:1.19.0\n"
+                "  app: terminal\n")
+            new_entry = {"image": "docker.io/kasmweb/vs-code:1.20.0",
+                        "app": "vs-code"}
+            out = gkc.upsert_entry(path, new_entry)
+            self.assertEqual([i["app"] for i in out["images"]],
+                             ["terminal", "vs-code"])
+
+    def test_missing_file_starts_fresh(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "does-not-exist.yaml"
+            entry = {"image": "docker.io/kasmweb/terminal:1.19.0", "app": "terminal"}
+            out = gkc.upsert_entry(path, entry)
+            self.assertEqual(out["apiVersion"], gkc.API_VERSION)
+            self.assertEqual(out["images"], [entry])
 
 
 if __name__ == "__main__":

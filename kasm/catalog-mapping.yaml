@@ -5,10 +5,14 @@
 #
 # ci/generate_kasm_catalog.py (scheduled pipeline, README § Image
 # catalogs) resolves the newest X.Y.Z release tag per image from Docker
-# Hub and publishes catalog-kasmweb.yaml; it NEVER writes back here.
-# knownVersion is only the offline fallback when Docker Hub is
-# unreachable — refresh it occasionally, it does not need to track
-# every Kasm release.
+# Hub and publishes catalog-kasmweb.yaml; the full-catalog CLI mode
+# never writes back here, but `generate_kasm_catalog.py <name>` (the
+# single-image mode) DOES append a minimal name/app/knownVersion block
+# below if <name> isn't listed yet — as plain text, never a full
+# yaml.safe_load/dump, so it can't strip these comments. Fill in
+# icon/displayName by hand afterward if wanted. knownVersion is only
+# the offline fallback when Docker Hub is unreachable — refresh it
+# occasionally, it does not need to track every Kasm release.
 #
 # icon: dashboard-icons slug (github.com/homarr-labs/dashboard-icons).
 # Verify https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/<slug>.svg

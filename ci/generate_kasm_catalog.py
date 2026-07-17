@@ -23,7 +23,22 @@ derive a profile from statically). Best effort by design throughout:
 any Hub/Docker failure falls back to omitting the field (or, for
 version resolution, the mapping's knownVersion) rather than failing,
 because this catalog must never block anything in this repo.
-Publication only: it never writes back to the mapping.
+
+Two CLI modes, both usable from CI or by hand (same script, same
+--probe-hardening flag either way):
+
+  - No positional arg (the CI/scheduled path, `catalog-kasmweb.yml`):
+    regenerate the WHOLE catalog from every image in the mapping.
+  - `generate_kasm_catalog.py <name>` (e.g. `vs-code` — never a full
+    ref: the registry, docker.io/kasmweb/, is always the same):
+    resolve/probe just THAT one image and upsert it into the existing
+    catalog-kasmweb.yaml in place, leaving every other entry untouched.
+    If `<name>` isn't in kasm/catalog-mapping.yaml yet, a minimal entry
+    (name/app/knownVersion) is appended to it as plain text — never a
+    yaml.safe_load/dump round-trip of the whole file, which would
+    silently strip its hand-written header comments — so the image is
+    tracked by future full regens too; icon/displayName are left for a
+    human to fill in by hand afterward.
 """
 from __future__ import annotations
 
@@ -216,8 +231,82 @@ def catalog(
     return {"apiVersion": API_VERSION, "images": images}
 
 
+def append_mapping_entry(mapping_path: Path, name: str, version: str) -> None:
+    """Append a minimal new image block to the hand-curated mapping
+    file as plain text, never via yaml.safe_load/safe_dump — round-
+    tripping the whole file through the YAML library would silently
+    strip every one of its header comments (icon-slug verification
+    instructions, the architectures/profile/recommended note, etc.).
+    icon/displayName are intentionally left out for a human to add by
+    hand afterward; knownVersion is the version resolved live right
+    now, so the entry has an offline fallback from the moment it's
+    added."""
+    block = (
+        f"\n  - name: {name}            # docker.io/kasmweb/{name}\n"
+        f"    app: {name}\n"
+        f"    knownVersion: \"{version}\"\n"
+    )
+    with mapping_path.open("a") as f:
+        f.write(block)
+
+
+def resolve_mapping_entry(mapping: dict, mapping_path: Path, name: str) -> dict:
+    """The single-image CLI mode's counterpart to iterating
+    mapping["images"] in catalog(): find `name`'s existing mapping
+    entry (unchanged), or resolve its current release live and append
+    a minimal one via append_mapping_entry() if this is a genuinely new
+    image. Exits with an error if `name` isn't already mapped AND has
+    no resolvable X.Y.Z release on Docker Hub — unlike catalog()'s
+    per-run best-effort posture, a manual single-image add with no
+    usable version at all has nothing sensible to write and should
+    fail loudly, not silently omit the image."""
+    for img in mapping["images"]:
+        if img["name"] == name:
+            return img
+    version = latest_release_tag(name)
+    if version is None:
+        sys.exit(f"kasmweb/{name}: no X.Y.Z release tag found on Docker Hub — "
+                  "not a known kasmweb image name, or Hub is unreachable")
+    append_mapping_entry(mapping_path, name, version)
+    print(f"kasmweb/{name}: new image, appended to {mapping_path} with "
+          f"knownVersion {version} (edit icon/displayName there by hand "
+          "if wanted)", file=sys.stderr)
+    return {"name": name, "app": name, "knownVersion": version}
+
+
+def upsert_entry(out_path: Path, entry: dict) -> dict:
+    """Merge `entry` into the catalog already at out_path (same app ->
+    replace in place, preserving every other entry's position; new app
+    -> append) instead of main()'s full-regen rebuild-from-scratch —
+    the single-image CLI mode must never clobber every other
+    already-published entry just to refresh or add one."""
+    if out_path.exists():
+        try:
+            data = yaml.safe_load(out_path.read_text()) or {}
+        except yaml.YAMLError:
+            data = {}
+    else:
+        data = {}
+    data.setdefault("apiVersion", API_VERSION)
+    images = data.setdefault("images", [])
+    for i, existing in enumerate(images):
+        if existing.get("app") == entry["app"]:
+            images[i] = entry
+            break
+    else:
+        images.append(entry)
+    return data
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "image", nargs="?",
+        help="short kasmweb image name (e.g. 'vs-code') to resolve/probe "
+             "and upsert in isolation instead of regenerating the whole "
+             "catalog — the registry (docker.io/kasmweb/) is always the "
+             "same, never pass a full ref; added to --mapping automatically "
+             "if it isn't there yet")
     parser.add_argument("--mapping", default=str(ROOT / "kasm/catalog-mapping.yaml"))
     parser.add_argument("--output", default="catalog-kasmweb.yaml")
     parser.add_argument(
@@ -228,10 +317,22 @@ def main() -> None:
              "stays fast and offline-friendly")
     args = parser.parse_args()
 
-    mapping = yaml.safe_load(Path(args.mapping).read_text())
+    mapping_path = Path(args.mapping)
+    mapping = yaml.safe_load(mapping_path.read_text())
     out_path = Path(args.output)
-    previous = gc.load_previous(out_path)
     probe = probe_hardening if args.probe_hardening else (lambda ref: None)
+    previous = gc.load_previous(out_path)
+
+    if args.image:
+        img = resolve_mapping_entry(mapping, mapping_path, args.image)
+        entry = catalog({"images": [img]}, probe=probe, previous=previous)["images"][0]
+        out_data = upsert_entry(out_path, entry)
+        out_path.write_text(
+            yaml.safe_dump(out_data, sort_keys=False, width=120, allow_unicode=True))
+        profile_note = f" (profile: {entry['profile']})" if entry.get("profile") else ""
+        print(f"updated {args.output}: {entry['app']} -> {entry['image']}{profile_note}")
+        return
+
     out = catalog(mapping, probe=probe, previous=previous)
     out_path.write_text(
         yaml.safe_dump(out, sort_keys=False, width=120, allow_unicode=True))

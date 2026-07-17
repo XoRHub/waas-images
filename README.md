@@ -271,7 +271,7 @@ path filter anyway.
 | Catalog | Generator | When |
 |---|---|---|
 | `catalog-waas-images.yaml` — the images this repo builds | `ci/generate_catalog.py` (reuses `generate_pipeline.py`'s manifest discovery — the catalog cannot drift from the build matrix) | `build.yml`'s `catalog` job, every default-branch run, after `build`/`merge` |
-| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable, then derives `architectures`/`profile`/`recommended` — see Design notes below) | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
+| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (rename images or add icons/displayName there by hand; the script resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable, then derives `architectures`/`profile`/`recommended` — see Design notes below). `generate_kasm_catalog.py <name>` (e.g. `vs-code`, no registry prefix) resolves/probes just that one image and upserts it in place — CI or by hand, same script — appending a minimal mapping entry first if `<name>` isn't tracked yet. | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
 
 Both files are committed via the Contents API (`ci/commit_catalog.sh`),
 not `git push`: `main` requires verified signatures and a bot's plain

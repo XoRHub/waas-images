@@ -1,0 +1,27 @@
+# Two variants on purpose (devtools precedent): the standard build is
+# the hardened catalog entry; hermes-agent-dev carries the documented
+# reduced profile (HARDENING.md § Reduced profile) so the agent can
+# `sudo apt install` the tools it decides it needs in-session —
+# in-session installs land in the container layer and die with the pod,
+# only /home/waas_user (and so ~/.hermes) survives.
+name: hermes-agent
+layer: apps
+description: >
+  Hermes Agent (Nous Research) with its web dashboard in a Firefox
+  kiosk (chat TUI embedded) — self-improving AI agent; keys, sessions,
+  memories and skills persist in ~/.hermes on the home volume.
+version: "2.0.1"
+from: core-ubuntu-noble
+icon: terminal
+
+variants:
+  - name: hermes-agent
+    smoke:
+      vnc: true
+
+  - name: hermes-agent-dev
+    profile: dev
+    buildArgs:
+      INSTALL_SUDO: "1"
+    smoke:
+      vnc: true

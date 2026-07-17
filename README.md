@@ -17,7 +17,8 @@ desktop/xfce-fedora fedora-desktop-43 — XFCE on core-fedora-43-full   │
 apps/firefox        policy-managed Firefox, single-app kiosk          │
 apps/devtools       VS Code + toolchain (+ devtools-dev)              │
 apps/libreoffice    recipe:-generated (no Dockerfile in tree)         │
-apps/chrome         recipe:-generated, third-party repo               ┘
+apps/chrome         recipe:-generated, third-party repo               │
+apps/hermes-agent   Hermes Agent, dashboard kiosk (+ -dev variant)    ┘
 images.yaml         global build config (OS matrix, archs, scan gate)
 ci/                 pipeline generator + recipe compiler, build/smoke scripts
 .github/workflows/  GitHub Actions pipeline (canonical forge)

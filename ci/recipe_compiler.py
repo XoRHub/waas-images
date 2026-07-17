@@ -6,8 +6,9 @@ A manifest may replace its hand-written Dockerfile with a declarative
 
     recipe:
       apt: [libreoffice, libreoffice-gtk3]   # required, non-empty
-      autostart: libreoffice     # XFCE autostart entry (Exec=<cmd>)
-      # startup: <cmd>           # single-app on the bare base (WAAS_STARTUP)
+      app: libreoffice           # single-app kiosk on the bare base (WAAS_APP)
+      # autostart: <cmd>         # XFCE autostart entry (Exec=<cmd>)
+      # startup: <cmd>           # raw session command, no WM (WAAS_STARTUP)
       # program: <cmd>           # long-running app under supervisord
       # repo:                    # third-party apt repo, firefox pattern
       #   url: https://dl.google.com/linux/chrome/deb/
@@ -36,7 +37,7 @@ from pathlib import Path
 
 GENERATED_NAME = "Dockerfile.generated"
 
-RECIPE_KEYS = {"apt", "autostart", "startup", "program", "repo"}
+RECIPE_KEYS = {"apt", "app", "autostart", "startup", "program", "repo"}
 REPO_KEYS = {"url", "suite", "component", "keyUrl", "fingerprint", "pin"}
 
 HEADER = """\
@@ -117,6 +118,13 @@ STARTUP = """\
 ENV WAAS_STARTUP="{command}"
 """
 
+APP = """\
+# Session contract with the base entrypoint: WAAS_APP puts waas-session
+# in single-app kiosk mode — openbox undecorates and maximises the app,
+# no desktop, no keybindings; the app is the session process.
+ENV WAAS_APP="{command}"
+"""
+
 # Long-running app under supervisord: ship an entrypoint.d hook (the
 # same extension point base/ubuntu/rootfs/etc/waas/entrypoint.d/
 # 50-sshd.sh uses) that renders the program fragment into the runtime
@@ -164,9 +172,10 @@ def validate(recipe: dict, context: str, has_dockerfile: bool) -> None:
         isinstance(p, str) and p and " " not in p for p in apt
     ):
         _fail(context, "recipe.apt must be a non-empty list of package names")
-    if recipe.get("autostart") and recipe.get("startup"):
-        _fail(context, "autostart (XFCE) and startup (bare base) are "
-                       "mutually exclusive")
+    session_keys = [k for k in ("app", "autostart", "startup") if recipe.get(k)]
+    if len(session_keys) > 1:
+        _fail(context, "app (kiosk), autostart (XFCE) and startup (raw) "
+                       f"are mutually exclusive, got: {session_keys}")
     repo = recipe.get("repo")
     if repo is not None:
         if not isinstance(repo, dict):
@@ -211,6 +220,8 @@ def render(recipe: dict, context: str) -> str:
         parts.append(AUTOSTART.format(name=cmd.split()[0], command=cmd))
     if recipe.get("startup"):
         parts.append(STARTUP.format(command=recipe["startup"]))
+    if recipe.get("app"):
+        parts.append(APP.format(command=recipe["app"]))
     if recipe.get("program"):
         cmd = recipe["program"]
         parts.append(PROGRAM.format(name=_slug(cmd.split()[0].rsplit("/", 1)[-1]),

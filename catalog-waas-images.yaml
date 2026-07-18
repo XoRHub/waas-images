@@ -252,6 +252,38 @@ images:
       protocols:
       - vnc
       default: '1'
+- image: docker.io/xorhub/hermes-agent-dev:2.0.1
+  os: linux
+  app: hermes-agent-dev
+  version: 2.0.1
+  icon: terminal
+  displayName: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat…
+  architectures:
+  - amd64
+  - arm64
+  profile: normal
+  recommended:
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: true
+      readOnlyRootFilesystem: false
+    volumes:
+    - name: tmp
+      mountPath: /tmp
+    - name: run
+      mountPath: /run
+    env:
+    - name: WAAS_AUDIO_ENABLED
+      description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
+        — boolean '0'/'1'.
+      protocols:
+      - vnc
+      default: '1'
 - image: docker.io/xorhub/libreoffice:2.0.1
   os: linux
   app: libreoffice

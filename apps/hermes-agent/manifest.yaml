@@ -10,7 +10,7 @@ description: >
   Hermes Agent (Nous Research) with its web dashboard in a Firefox
   kiosk (chat TUI embedded) — self-improving AI agent; keys, sessions,
   memories and skills persist in ~/.hermes on the home volume.
-version: "2.0.1"
+version: "2.0.2"
 from: core-ubuntu-noble
 icon: hermes-agent
 
@@ -36,6 +36,7 @@ variants:
     displayName: Hermes-Agent (hardened)
     smoke:
       vnc: true
+      ssh: true
 
   - name: hermes-agent-dev
     displayName: Hermes-Agent (dev)
@@ -44,3 +45,4 @@ variants:
       INSTALL_SUDO: "1"
     smoke:
       vnc: true
+      ssh: true

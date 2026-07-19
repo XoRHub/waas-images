@@ -9,6 +9,9 @@ description: >
 version: "2.0.1"
 from: core-ubuntu-noble
 icon: libreoffice
+# Catalog label (waas picker): CamelCase branding the humanize
+# fallback can't derive ("Libreoffice").
+displayName: LibreOffice
 
 recipe:
   apt: [libreoffice, libreoffice-gtk3]

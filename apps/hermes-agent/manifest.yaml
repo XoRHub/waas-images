@@ -15,11 +15,16 @@ from: core-ubuntu-noble
 icon: terminal
 
 variants:
+  # Catalog labels (waas picker), per variant: keeps the hyphenated
+  # product name and adds the profile suffix that disambiguates the
+  # two variants sharing this base name.
   - name: hermes-agent
+    displayName: Hermes-Agent (hardened)
     smoke:
       vnc: true
 
   - name: hermes-agent-dev
+    displayName: Hermes-Agent (dev)
     profile: dev
     buildArgs:
       INSTALL_SUDO: "1"

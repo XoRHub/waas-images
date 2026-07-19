@@ -3,7 +3,7 @@ layer: apps
 description: >
   Managed, policy-hardened Firefox in a single-app kiosk session — the
   browser fills the screen, no desktop behind it.
-version: "2.0.1"
+version: "2.0.2"
 from: core-ubuntu-noble
 icon: firefox
 

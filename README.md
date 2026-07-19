@@ -289,7 +289,8 @@ into the image:
 WaaS (`waas`) lets a user create a workspace straight from an
 admin-approved registry image, without a per-image WorkspaceTemplate.
 Its api-server's `CatalogSyncWorker` periodically fetches catalog files —
-`{image, os, app, version, icon, displayName, architectures}` lists,
+`{image, os, app, version, icon, displayName, description,
+architectures}` lists,
 plus `profile`/`recommended` deployment hints on
 `catalog-waas-images.yaml` entries (see Design notes below), under
 `apiVersion: waas.xorhub.io/catalog/v1` (full contract: the JSON
@@ -340,12 +341,19 @@ Design notes:
   tagging), so the ref is already as stable as a digest.
 - The `os:` field is always `linux` (workspace OS family, what guacd
   cares about) — not the build distro that `io.xorhub.waas.os` carries.
-- `displayName` is always the manifest's `description:`, truncated to
-  80 chars.
+- `displayName` is a human-readable label: the manifest's optional
+  `displayName:` (root, overridable per variant — the `icon:`
+  convention) when set, else derived from the variant id
+  (dashes/underscores → spaces, title case: `ubuntu-desktop-noble` →
+  `Ubuntu Desktop Noble`). Ids the naive rule renders badly get an
+  explicit `displayName:` in their manifest (`LibreOffice`,
+  `DevTools (hardened)`), never a hard-coded exception in the
+  generator. `description` carries the manifest's `description:`
+  whole — the old 80-char `displayName` truncation is gone.
 - `core-*` variants (internal build parents — base layer, plus the
   VNC-only desktop parent for `apps/*`) never appear here at all: the
   generator skips any variant name starting with `core-` before it
-  reaches the fallback/truncation logic above.
+  reaches the fallback logic above.
 - **`main` is the only ref, always overwritten in place**: this repo has
   no repo-global version or git tag (each image versions independently
   via its manifest), so there is nothing meaningful to pin a catalog

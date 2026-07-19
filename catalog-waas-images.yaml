@@ -266,7 +266,7 @@ images:
   os: linux
   app: hermes-agent
   version: 2.0.1
-  icon: terminal
+  icon: hermes-agent
   displayName: Hermes-Agent (hardened)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
     AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume.
@@ -293,6 +293,18 @@ images:
     - name: run
       mountPath: /run
     env:
+    - name: WAAS_SSH_ENABLED
+      description: Enable sshd (publickey only) — boolean '0'/'1'.
+      protocols:
+      - ssh
+      default: '0'
+      requires:
+      - WAAS_SSH_AUTHORIZED_KEYS_FILE
+    - name: WAAS_SSH_AUTHORIZED_KEYS_FILE
+      description: 'Path to the authorized public key — mount from a Secret (valueFrom.secretKeyRef), never a literal value.
+        Required as soon as WAAS_SSH_ENABLED=1: the entrypoint refuses to start otherwise (fail-closed by design).'
+      protocols:
+      - ssh
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
         — boolean '0'/'1'.
@@ -307,7 +319,7 @@ images:
   os: linux
   app: hermes-agent-dev
   version: 2.0.1
-  icon: terminal
+  icon: hermes-agent
   displayName: Hermes-Agent (dev)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
     AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume.
@@ -331,6 +343,18 @@ images:
     - name: run
       mountPath: /run
     env:
+    - name: WAAS_SSH_ENABLED
+      description: Enable sshd (publickey only) — boolean '0'/'1'.
+      protocols:
+      - ssh
+      default: '0'
+      requires:
+      - WAAS_SSH_AUTHORIZED_KEYS_FILE
+    - name: WAAS_SSH_AUTHORIZED_KEYS_FILE
+      description: 'Path to the authorized public key — mount from a Secret (valueFrom.secretKeyRef), never a literal value.
+        Required as soon as WAAS_SSH_ENABLED=1: the entrypoint refuses to start otherwise (fail-closed by design).'
+      protocols:
+      - ssh
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
         — boolean '0'/'1'.

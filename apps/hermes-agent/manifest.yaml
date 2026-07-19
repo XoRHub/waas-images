@@ -12,7 +12,7 @@ description: >
   memories and skills persist in ~/.hermes on the home volume.
 version: "2.0.1"
 from: core-ubuntu-noble
-icon: terminal
+icon: hermes-agent
 
 # Image-specific catalog env hint(s): variables this image honors that
 # no protocol table (smoke:-derived) can surface. Root-level so both

@@ -5,7 +5,9 @@ images:
   app: chrome
   version: 2.0.1
   icon: google-chrome
-  displayName: Google Chrome (dl.google.com APT repo, fingerprint pinned) in a single-app…
+  displayName: Google Chrome
+  description: Google Chrome (dl.google.com APT repo, fingerprint pinned) in a single-app kiosk session — no desktop behind
+    it; the pod is the sandbox boundary (inner Chrome sandbox disabled, Firefox-gap precedent).
   architectures:
   - amd64
   profile: hardened
@@ -39,7 +41,8 @@ images:
   app: debian-desktop-13
   version: 2.0.1
   icon: debian-linux
-  displayName: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
+  displayName: Debian Desktop 13
+  description: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
   architectures:
   - amd64
   - arm64
@@ -97,7 +100,9 @@ images:
   app: devtools
   version: 2.0.2
   icon: visual-studio-code
-  displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
+  displayName: DevTools (hardened)
+  description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a dev toolchain (git, build-essential,
+    python3, jq, tmux, ...). No autostart: VS Code sits in the XFCE menu.'
   architectures:
   - amd64
   - arm64
@@ -132,7 +137,9 @@ images:
   app: devtools-dev
   version: 2.0.2
   icon: visual-studio-code
-  displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
+  displayName: DevTools (dev)
+  description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a dev toolchain (git, build-essential,
+    python3, jq, tmux, ...). No autostart: VS Code sits in the XFCE menu.'
   architectures:
   - amd64
   - arm64
@@ -164,7 +171,8 @@ images:
   app: fedora-desktop-43
   version: 2.0.1
   icon: fedora
-  displayName: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
+  displayName: Fedora Desktop 43
+  description: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
   architectures:
   - amd64
   - arm64
@@ -222,7 +230,9 @@ images:
   app: firefox
   version: 2.0.2
   icon: firefox
-  displayName: Managed, policy-hardened Firefox in a single-app kiosk session — the browser…
+  displayName: Firefox
+  description: Managed, policy-hardened Firefox in a single-app kiosk session — the browser fills the screen, no desktop behind
+    it.
   architectures:
   - amd64
   - arm64
@@ -257,7 +267,9 @@ images:
   app: hermes-agent
   version: 2.0.1
   icon: terminal
-  displayName: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat…
+  displayName: Hermes-Agent (hardened)
+  description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
+    AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume.
   architectures:
   - amd64
   - arm64
@@ -292,7 +304,9 @@ images:
   app: hermes-agent-dev
   version: 2.0.1
   icon: terminal
-  displayName: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat…
+  displayName: Hermes-Agent (dev)
+  description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
+    AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume.
   architectures:
   - amd64
   - arm64
@@ -324,7 +338,8 @@ images:
   app: libreoffice
   version: 2.0.1
   icon: libreoffice
-  displayName: LibreOffice (Ubuntu main packages, no third-party repo) in a single-app kiosk…
+  displayName: LibreOffice
+  description: LibreOffice (Ubuntu main packages, no third-party repo) in a single-app kiosk session — no desktop behind it.
   architectures:
   - amd64
   - arm64
@@ -359,7 +374,8 @@ images:
   app: ubuntu-desktop-noble
   version: 2.0.1
   icon: ubuntu-linux
-  displayName: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
+  displayName: Ubuntu Desktop Noble
+  description: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
   architectures:
   - amd64
   - arm64

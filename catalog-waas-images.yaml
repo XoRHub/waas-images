@@ -92,10 +92,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/devtools:2.0.1
+- image: docker.io/xorhub/devtools:2.0.2
   os: linux
   app: devtools
-  version: 2.0.1
+  version: 2.0.2
   icon: visual-studio-code
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
   architectures:
@@ -127,10 +127,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/devtools-dev:2.0.1
+- image: docker.io/xorhub/devtools-dev:2.0.2
   os: linux
   app: devtools-dev
-  version: 2.0.1
+  version: 2.0.2
   icon: visual-studio-code
   displayName: XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a…
   architectures:
@@ -217,10 +217,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/firefox:2.0.1
+- image: docker.io/xorhub/firefox:2.0.2
   os: linux
   app: firefox
-  version: 2.0.1
+  version: 2.0.2
   icon: firefox
   displayName: Managed, policy-hardened Firefox in a single-app kiosk session — the browser…
   architectures:

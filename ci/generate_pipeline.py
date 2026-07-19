@@ -111,6 +111,11 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 # slug, never baked into the image. Root + per-variant
                 # override, like smoke:/buildArgs:.
                 "icon": v.get("icon", m.get("icon", "")),
+                # Catalog-only key like icon (root + per-variant
+                # override): explicit human-readable label. Empty =
+                # generate_catalog.py derives one from the variant name
+                # (humanize).
+                "displayName": v.get("displayName", m.get("displayName", "")),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
                 "build_args": build_args,

@@ -49,9 +49,9 @@ from __future__ import annotations
 import argparse
 import copy
 import os
+import re
 import subprocess
 import sys
-import textwrap
 from pathlib import Path
 from typing import Callable
 
@@ -187,6 +187,16 @@ def recommended_for(v: dict) -> dict:
     return recommended
 
 
+def humanize(name: str) -> str:
+    """Fallback displayName from a variant id: dashes/underscores to
+    spaces, title case per word ("ubuntu-desktop-noble" -> "Ubuntu
+    Desktop Noble"). Deliberately no acronym/branding dictionary: an id
+    this naive rule renders badly gets an explicit displayName: in its
+    manifest instead (LibreOffice, DevTools, ...) — the exception lives
+    next to the image it describes, never hard-coded here."""
+    return " ".join(w.capitalize() for w in re.split(r"[-_]+", name) if w)
+
+
 def load_previous(path: Path) -> dict[str, dict]:
     """Best-effort read of the catalog this generator last wrote,
     keyed by app name — the fallback source when today's build for an
@@ -252,9 +262,13 @@ def catalog(
         }
         if v["icon"]:
             entry["icon"] = v["icon"]
+        # A real, human-readable label: the manifest's displayName when
+        # set, else derived from the variant id — NEVER the description
+        # shortened to 80 chars (the truncation this replaces; the full
+        # description now travels in its own field below).
+        entry["displayName"] = v["displayName"] or humanize(name)
         if v["description"]:
-            entry["displayName"] = textwrap.shorten(
-                v["description"], width=80, placeholder="…")
+            entry["description"] = v["description"]
         # Derived from the build matrix (v["archs"], the exact list the
         # per-arch build jobs fan out on), never hand-written: the
         # catalog cannot claim an architecture the pipeline doesn't

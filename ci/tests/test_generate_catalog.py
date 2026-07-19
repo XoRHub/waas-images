@@ -63,7 +63,9 @@ class CatalogFormat(unittest.TestCase):
             "app": "ubuntu-xfce",
             "version": "1.1.0",
             "icon": "ubuntu-linux",
-            "displayName": "XFCE desktop, VNC + RDP, derived from the apt base-rdp image.",
+            # No displayName: in the manifest — derived from the id.
+            "displayName": "Ubuntu Xfce",
+            "description": "XFCE desktop, VNC + RDP, derived from the apt base-rdp image.",
             # Build matrix defaults (CFG): linux/amd64 -> amd64.
             "architectures": ["amd64"],
             # No smoke: on this fixture's variant, so no env hints — but
@@ -91,7 +93,10 @@ class CatalogFormat(unittest.TestCase):
     def test_missing_icon_and_description_omitted(self):
         entry = self.by_app["ubuntu-firefox"]
         self.assertNotIn("icon", entry)
-        self.assertNotIn("displayName", entry)
+        self.assertNotIn("description", entry)
+        # displayName is ALWAYS emitted: humanized id when the manifest
+        # has neither displayName nor description to offer.
+        self.assertEqual(entry["displayName"], "Ubuntu Firefox")
         self.assertEqual(
             entry["image"],
             "registry.gitlab.com/acme/waas-images/ubuntu-firefox:1.0.3")
@@ -100,13 +105,43 @@ class CatalogFormat(unittest.TestCase):
         for entry in self.out["images"]:
             self.assertNotIn("@", entry["image"])
 
-    def test_display_name_truncated(self):
-        manifests = [dict(MANIFESTS[0], description="word " * 40)]
+    def test_description_never_truncated(self):
+        # The 80-char displayName shortening is gone: a long
+        # description travels whole in its own field, and displayName
+        # stays a label derived from the id, not from the description.
+        long = ("word " * 40).strip()
+        manifests = [dict(MANIFESTS[0], description=long)]
         variants = gp.flatten_variants(manifests, CFG)
         out = gc.catalog(variants, "reg")
         for entry in out["images"]:
-            self.assertLessEqual(len(entry["displayName"]), 80)
-            self.assertTrue(entry["displayName"].endswith("…"))
+            self.assertEqual(entry["description"], long)
+            self.assertNotIn("…", entry["displayName"])
+
+    def test_display_name_source_overrides_humanize(self):
+        # Root manifest displayName + per-variant override, the icon
+        # convention — the source of truth for branding/profile labels
+        # the naive humanize can't derive.
+        manifests = [dict(
+            MANIFESTS[0],
+            displayName="XFCE Desktop",
+            variants=[
+                {"name": "ubuntu-xfce"},
+                {"name": "debian-xfce", "os": "debian-13",
+                 "displayName": "XFCE Desktop (Debian)"},
+            ],
+        )]
+        variants = gp.flatten_variants(manifests, CFG)
+        out = gc.catalog(variants, "reg")
+        by_app = {e["app"]: e for e in out["images"]}
+        self.assertEqual(by_app["ubuntu-xfce"]["displayName"], "XFCE Desktop")
+        self.assertEqual(
+            by_app["debian-xfce"]["displayName"], "XFCE Desktop (Debian)")
+
+    def test_humanize(self):
+        self.assertEqual(gc.humanize("firefox"), "Firefox")
+        self.assertEqual(gc.humanize("ubuntu-desktop-noble"), "Ubuntu Desktop Noble")
+        self.assertEqual(gc.humanize("fedora-desktop-43"), "Fedora Desktop 43")
+        self.assertEqual(gc.humanize("snake_case_id"), "Snake Case Id")
 
     def test_core_prefixed_variants_never_published(self):
         # core-*: internal build parents only (base + the apps/* desktop

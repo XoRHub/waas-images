@@ -27,7 +27,9 @@ class ValidateCatalog(unittest.TestCase):
         data = minimal()
         data["images"][0].update(
             os="linux", app="ubuntu-xfce", version="1.1.0",
-            icon="ubuntu-linux", displayName="XFCE desktop")
+            icon="ubuntu-linux", displayName="XFCE Desktop",
+            description="XFCE desktop, VNC + RDP + SSH, derived from "
+                        "the apt core-full image.")
         self.assertEqual(vc.validate(data, SCHEMA), [])
 
     def test_full_recommended_entry_valid(self):

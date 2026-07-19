@@ -14,6 +14,10 @@
 # the offline fallback when Docker Hub is unreachable — refresh it
 # occasionally, it does not need to track every Kasm release.
 #
+# description: optional free text. Emitted as-is when present; if
+# omitted, a description the published catalog already carried is kept,
+# never erased (ci/generate_kasm_catalog.py catalog()).
+#
 # icon: dashboard-icons slug (github.com/homarr-labs/dashboard-icons).
 # Verify https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/<slug>.svg
 # answers 200 before committing — an invalid slug fails nothing here,

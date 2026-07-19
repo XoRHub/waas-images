@@ -122,6 +122,30 @@ class Catalog(unittest.TestCase):
             "architectures": ["amd64"],
         }])
 
+    def test_description_from_mapping_emitted(self):
+        mapping = {"images": [
+            {"name": "terminal", "app": "terminal", "knownVersion": "1.19.0",
+             "description": "Kasm terminal desktop."},
+        ]}
+        out = self._catalog(mapping)
+        self.assertEqual(out["images"][0]["description"],
+                         "Kasm terminal desktop.")
+
+    def test_description_absent_from_mapping_omitted(self):
+        # MAPPING's terminal entry carries no description.
+        self.assertNotIn("description", self._catalog()["images"][0])
+
+    def test_description_preserved_from_previous_when_mapping_omits_it(self):
+        # Never regenerated away: a description the last catalog carried
+        # survives even though the mapping (MAPPING) has none.
+        previous = {"terminal": {
+            "image": "docker.io/kasmweb/terminal:1.20.0",
+            "description": "hand-written, must not be erased",
+        }}
+        out = self._catalog(previous=previous)
+        self.assertEqual(out["images"][0]["description"],
+                         "hand-written, must not be erased")
+
     def test_missing_architectures_omitted(self):
         mapping = {"images": [
             {"name": "chrome", "app": "chrome", "knownVersion": "1.19.0"},

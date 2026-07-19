@@ -10,7 +10,9 @@ docker.io/kasmweb/* images (same format contract as
 catalog-waas-images.yaml, README § Image catalogs).
 
 kasm/catalog-mapping.yaml stays hand-curated for which image/app
-name/icon to publish; this script resolves the newest published X.Y.Z
+name/icon/displayName/description to publish (description optional and
+never regenerated away — see catalog()); this script resolves the
+newest published X.Y.Z
 release tag per image from the public Docker Hub API (no auth needed),
 and derives BOTH `architectures` (Hub's per-tag manifest-list
 architecture data — no longer hand-curated: that data drifted stale,
@@ -197,6 +199,15 @@ def catalog(
             entry["icon"] = img["icon"]
         if img.get("displayName"):
             entry["displayName"] = img["displayName"]
+        # Hand-curated in the mapping like icon/displayName, but never
+        # regenerated away: when the mapping omits it, a description the
+        # previous catalog already carried is preserved rather than
+        # dropped — a value that once existed is never silently erased.
+        # Absent from both -> field omitted entirely.
+        fallback = previous.get(img["app"])
+        description = img.get("description") or (fallback or {}).get("description")
+        if description:
+            entry["description"] = description
         # Derived from Docker Hub's per-tag manifest-list data for the
         # resolved version, never hand-curated (see hub_architectures()
         # docstring for why the old hand-curated field was removed).
@@ -217,7 +228,6 @@ def catalog(
         # changed must not be re-probed every run. Otherwise call
         # probe(ref) (a no-op returning None unless --probe-hardening
         # was passed — see main()).
-        fallback = previous.get(img["app"])
         if fallback and fallback.get("image") == ref and fallback.get("profile"):
             entry["profile"] = fallback["profile"]
             if fallback.get("recommended"):

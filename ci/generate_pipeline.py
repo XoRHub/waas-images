@@ -120,6 +120,12 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
                 "build_args": build_args,
                 "smoke": v.get("smoke", {}),
+                # Catalog-only key like icon/displayName (root + per-variant
+                # override): image-specific EnvHint(s) generate_catalog.py
+                # merges into recommended.env on top of the smoke:-derived
+                # protocol hints. For variables an image honors that no
+                # protocol table can know about (e.g. WAAS_HERMES_DASHBOARD).
+                "env": v.get("env", m.get("env", [])),
             }
     return variants
 

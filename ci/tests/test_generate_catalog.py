@@ -198,6 +198,22 @@ RECOMMENDED_MANIFESTS = [
             {"name": "devtools-dev", "profile": "dev", "smoke": {"vnc": True}},
         ],
     },
+    {
+        "name": "hermes-agent",
+        "layer": "apps",
+        "context": "apps/hermes-agent",
+        "dockerfile": None,
+        "description": "Hermes agent.",
+        "version": "1.0.0",
+        # Root-level image-specific env: an image-only hint (no protocol)
+        # plus one that collides with the vnc-derived WAAS_AUDIO_ENABLED
+        # to exercise the manifest-wins override path.
+        "env": [
+            {"name": "WAAS_HERMES_DASHBOARD", "default": "1"},
+            {"name": "WAAS_AUDIO_ENABLED", "default": "0"},
+        ],
+        "variants": [{"name": "hermes-agent", "smoke": {"vnc": True}}],
+    },
 ]
 
 
@@ -243,6 +259,16 @@ class CatalogRecommended(unittest.TestCase):
         self.assertEqual(
             [h["name"] for h in self.by_app["chrome"]["recommended"]["env"]],
             ["WAAS_AUDIO_ENABLED"])
+
+    def test_manifest_env_merges_and_overrides_protocol_hints(self):
+        env = self.by_app["hermes-agent"]["recommended"]["env"]
+        # vnc -> WAAS_AUDIO_ENABLED (protocol), kept in position; the
+        # image-only WAAS_HERMES_DASHBOARD appended after it.
+        self.assertEqual([h["name"] for h in env],
+                         ["WAAS_AUDIO_ENABLED", "WAAS_HERMES_DASHBOARD"])
+        # Same-name manifest hint replaces the protocol entry (default 1 -> 0).
+        audio = next(h for h in env if h["name"] == "WAAS_AUDIO_ENABLED")
+        self.assertEqual(audio["default"], "0")
 
     def test_no_smoke_protocols_omits_env_key(self):
         # MANIFESTS' ubuntu-xfce/debian-xfce carry no smoke: at all.

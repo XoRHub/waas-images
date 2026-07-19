@@ -367,7 +367,10 @@ Design notes:
   `recommended` block, both derived from this repo's own
   `manifest.yaml`/`HARDENING.md` doctrine (`ci/generate_catalog.py`'s
   `RECOMMENDATION_STANDARD`/`RECOMMENDATION_DEV` + a `smoke:`-driven
-  `env` hint list) — never hand-written. `catalog-kasmweb.yaml` entries
+  `env` hint list) — the securityContext/volumes parts are never
+  hand-written; the `env` list additionally merges the manifest's own
+  image-specific `env:` hints (root or per variant, manifest wins a
+  name collision). `catalog-kasmweb.yaml` entries
   carry the same two fields, but since those upstream images have no
   local manifest/doctrine to derive a profile from statically,
   `ci/generate_kasm_catalog.py --probe-hardening` (`catalog-kasmweb.yml`

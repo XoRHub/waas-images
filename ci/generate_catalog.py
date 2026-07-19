@@ -19,10 +19,13 @@ immutable by CI construction (README § Build matrix & tagging).
 Every entry also carries `profile`/`recommended` — waas's deployment
 recommendation fields (wire format: shared/catalog.Entry, vendored
 schema: ci/schema/v1.schema.json) — and `architectures`, waas's
-per-image nodeSelector prefill hint. All are derived locally from data
-already in this repo (variant `profile:`, `smoke:`, `archs:`,
-HARDENING.md's platform-side doctrine) rather than hand-written in any
-manifest.yaml, so they cannot drift from the doctrine they mirror. See
+per-image nodeSelector prefill hint. The securityContext/volumes parts
+are derived locally from data already in this repo (variant `profile:`,
+`smoke:`, `archs:`, HARDENING.md's platform-side doctrine) rather than
+hand-written in any manifest.yaml, so they cannot drift from the
+doctrine they mirror; recommended.env additionally layers the
+manifest's own image-specific `env:` hints on top of the
+smoke:-derived protocol table (merge_hints). See
 RECOMMENDATION_STANDARD/RECOMMENDATION_DEV below.
 
 Every entry is normally "{registry}/{variant name}:{variant version}"
@@ -175,13 +178,30 @@ def env_hints(smoke: dict) -> list[dict]:
     return hints
 
 
+def merge_hints(protocol_hints: list[dict], manifest_hints: list[dict]) -> list[dict]:
+    """recommended.env: the smoke:-derived protocol hints with the
+    manifest's image-specific EnvHint(s) (variant["env"]) layered on
+    top. A manifest hint whose name matches a protocol hint replaces it
+    in place (order preserved) — so an image can correct a generic
+    protocol default it diverges from; a new name is appended in
+    manifest order. Manifest always wins the collision."""
+    by_name = {h["name"]: h for h in protocol_hints}
+    order = [h["name"] for h in protocol_hints]
+    for h in manifest_hints:
+        if h["name"] not in by_name:
+            order.append(h["name"])
+        by_name[h["name"]] = copy.deepcopy(h)
+    return [by_name[n] for n in order]
+
+
 def recommended_for(v: dict) -> dict:
     """entry["recommended"] for one variant: the fixed standard/dev
     Recommendation block for its profile, plus env hints for whichever
-    protocols its smoke: block declares."""
+    protocols its smoke: block declares, merged with the manifest's own
+    image-specific env: hints."""
     base = RECOMMENDATION_DEV if v["profile"] == "dev" else RECOMMENDATION_STANDARD
     recommended = copy.deepcopy(base)
-    hints = env_hints(v["smoke"])
+    hints = merge_hints(env_hints(v["smoke"]), v.get("env", []))
     if hints:
         recommended["env"] = hints
     return recommended

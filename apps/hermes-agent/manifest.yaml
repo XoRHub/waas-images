@@ -14,6 +14,20 @@ version: "2.0.1"
 from: core-ubuntu-noble
 icon: terminal
 
+# Image-specific catalog env hint(s): variables this image honors that
+# no protocol table (smoke:-derived) can surface. Root-level so both
+# variants inherit; each conforms to the catalog EnvHint contract —
+# name required, protocols optional and omitted here (this toggle is not
+# protocol-gated). Merged on top of the smoke:-derived hints by
+# ci/generate_catalog.py.
+env:
+  - name: WAAS_HERMES_DASHBOARD
+    description: >-
+      Serve the Hermes web dashboard in a Firefox kiosk (127.0.0.1:9119).
+      Boolean '1'/'0'; set '0' to disable the server and fall back to the
+      embedded chat TUI.
+    default: "1"
+
 variants:
   # Catalog labels (waas picker), per variant: keeps the hyphenated
   # product name and adds the profile suffix that disambiguates the

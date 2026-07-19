@@ -299,6 +299,10 @@ images:
       protocols:
       - vnc
       default: '1'
+    - name: WAAS_HERMES_DASHBOARD
+      description: Serve the Hermes web dashboard in a Firefox kiosk (127.0.0.1:9119). Boolean '1'/'0'; set '0' to disable
+        the server and fall back to the embedded chat TUI.
+      default: '1'
 - image: docker.io/xorhub/hermes-agent-dev:2.0.1
   os: linux
   app: hermes-agent-dev
@@ -332,6 +336,10 @@ images:
         — boolean '0'/'1'.
       protocols:
       - vnc
+      default: '1'
+    - name: WAAS_HERMES_DASHBOARD
+      description: Serve the Hermes web dashboard in a Firefox kiosk (127.0.0.1:9119). Boolean '1'/'0'; set '0' to disable
+        the server and fall back to the embedded chat TUI.
       default: '1'
 - image: docker.io/xorhub/libreoffice:2.0.1
   os: linux

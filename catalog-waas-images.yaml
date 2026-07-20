@@ -262,10 +262,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/hermes-agent:2.0.1
+- image: docker.io/xorhub/hermes-agent:2.0.2
   os: linux
   app: hermes-agent
-  version: 2.0.1
+  version: 2.0.2
   icon: hermes-agent
   displayName: Hermes-Agent (hardened)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
@@ -293,18 +293,6 @@ images:
     - name: run
       mountPath: /run
     env:
-    - name: WAAS_SSH_ENABLED
-      description: Enable sshd (publickey only) — boolean '0'/'1'.
-      protocols:
-      - ssh
-      default: '0'
-      requires:
-      - WAAS_SSH_AUTHORIZED_KEYS_FILE
-    - name: WAAS_SSH_AUTHORIZED_KEYS_FILE
-      description: 'Path to the authorized public key — mount from a Secret (valueFrom.secretKeyRef), never a literal value.
-        Required as soon as WAAS_SSH_ENABLED=1: the entrypoint refuses to start otherwise (fail-closed by design).'
-      protocols:
-      - ssh
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
         — boolean '0'/'1'.
@@ -315,10 +303,10 @@ images:
       description: Serve the Hermes web dashboard in a Firefox kiosk (127.0.0.1:9119). Boolean '1'/'0'; set '0' to disable
         the server and fall back to the embedded chat TUI.
       default: '1'
-- image: docker.io/xorhub/hermes-agent-dev:2.0.1
+- image: docker.io/xorhub/hermes-agent-dev:2.0.2
   os: linux
   app: hermes-agent-dev
-  version: 2.0.1
+  version: 2.0.2
   icon: hermes-agent
   displayName: Hermes-Agent (dev)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
@@ -343,18 +331,6 @@ images:
     - name: run
       mountPath: /run
     env:
-    - name: WAAS_SSH_ENABLED
-      description: Enable sshd (publickey only) — boolean '0'/'1'.
-      protocols:
-      - ssh
-      default: '0'
-      requires:
-      - WAAS_SSH_AUTHORIZED_KEYS_FILE
-    - name: WAAS_SSH_AUTHORIZED_KEYS_FILE
-      description: 'Path to the authorized public key — mount from a Secret (valueFrom.secretKeyRef), never a literal value.
-        Required as soon as WAAS_SSH_ENABLED=1: the entrypoint refuses to start otherwise (fail-closed by design).'
-      protocols:
-      - ssh
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
         — boolean '0'/'1'.

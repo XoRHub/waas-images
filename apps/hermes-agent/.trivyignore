@@ -22,3 +22,47 @@
 # and apps/devtools/.trivyignore — all three carry this same pair.
 CVE-2022-25235
 CVE-2022-25236
+
+# ----------------------------------------------------------------------
+# Accepted upstream-owned findings — NOT false positives. Unlike the
+# expat pair above, the six IDs below are real vulnerabilities, in
+# Python dependencies resolved by the upstream Hermes installer
+# (hermes-agent.nousresearch.com/install.sh --branch v2026.7.7.2).
+# Added 2026-07-20 after run 29711725457 gated red.
+#
+# Why not fix them here: the uv-managed environment the installer lays
+# down is upstream's tested dependency set, not ours. Pip-installing
+# newer versions on top, or patching the resolved lockfile, would ship a
+# combination Hermes was never run against and risk breaking the agent —
+# and this image's standing policy is to stay as close to upstream
+# hermes-agent as possible (see the Dockerfile). The fix has to arrive
+# as a Hermes release whose own dependency set resolves the fixed
+# versions.
+#
+#   mcp 1.26.0               CVE-2026-52869 / CVE-2026-52870
+#                            (both fixed in 1.27.2),
+#                            CVE-2026-59950 (fixed in 1.28.1)
+#   python-multipart 0.0.27  CVE-2026-53539 (fixed in 0.0.30)
+#   starlette 1.0.1          CVE-2026-48818 (fixed in 1.1.0),
+#                            CVE-2026-54283 (fixed in 1.3.1)
+#
+# Exposure in THIS image: all three packages are MCP / ASGI server-side
+# components. The only server we knowingly run is the supervised
+# dashboard, bound loopback-only on 127.0.0.1:9119 — the pod contract
+# never exposes it, and the password-gated VNC display is the sole way
+# in, so exploiting a server-side flaw first requires an authenticated
+# session (or a sidecar sharing the pod's network namespace). Whether
+# the dashboard server is actually built on starlette, and whether the
+# agent ever binds an MCP server beyond loopback, is upstream
+# implementation detail we have NOT traced — treat this block as "no
+# known remote path", not "proven unreachable".
+#
+# Re-evaluate on EVERY HERMES_VERSION bump (renovate tracks
+# NousResearch/hermes-agent in the Dockerfile): rebuild, rescan, and
+# drop each ID the new release's dependency set no longer trips.
+CVE-2026-52869
+CVE-2026-52870
+CVE-2026-59950
+CVE-2026-53539
+CVE-2026-48818
+CVE-2026-54283

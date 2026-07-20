@@ -15,6 +15,10 @@
 #   SSH: read the protocol banner ("SSH-2.0-...") from port 2222.
 #   AUDIO: pactl (in-container) against the PulseAudio TCP module — the
 #          native protocol has no server-first banner to read from outside.
+#
+# Plus one non-protocol gate, run only on images that ship it: mise must
+# be wired BOTH ways — shims on PATH (non-interactive contexts) and
+# `mise activate` in an interactive bash. See the block below.
 set -eu
 
 : "${SMOKE_IMAGE:?}"
@@ -79,6 +83,28 @@ else
         exit 1
     fi
     echo "OK: no setuid/setgid binaries"
+fi
+
+# mise wiring gate — self-gating on the binary being present, so images
+# without mise skip it silently. Deliberately NOT a new SMOKE_* key: that
+# contract is a fixed list in ci/generate_pipeline.py mirrored three times
+# in build.yml, i.e. a four-file change for one boolean.
+#
+# The build already asserts mise EXISTS (`mise --version` in the RUN). What
+# it cannot see is the wiring, which is the fragile half — and there are
+# two of them, covering different contexts:
+#   shims on PATH  — the only mechanism that works non-interactively.
+#   mise activate  — interactive shells only (prompt hook), but richer.
+# Note this runs against the tmpfs home, i.e. the empty-PVC first boot.
+if docker exec "${NAME}" sh -c 'command -v mise' >/dev/null 2>&1; then
+    docker exec "${NAME}" sh -c 'case ":$PATH:" in *":$HOME/.local/share/mise/shims:"*) exit 0 ;; *) exit 1 ;; esac' \
+        || { echo "FAIL: mise is installed but its shims dir is not on PATH"; exit 1; }
+    # declare -f, not command -v: the binary in /usr/local/bin would
+    # satisfy command -v without activation ever having run, proving
+    # nothing. The shell FUNCTION only exists if activate was sourced.
+    docker exec "${NAME}" bash -ic 'declare -f mise >/dev/null' \
+        || { echo "FAIL: mise is not activated in an interactive shell"; exit 1; }
+    echo "OK: mise shims on PATH and activated in interactive bash"
 fi
 
 # retry "<label>" <fn>: run <fn> up to 60 times, 2s apart, failing early

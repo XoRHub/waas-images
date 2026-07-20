@@ -36,10 +36,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/debian-desktop-13:2.0.1
+- image: docker.io/xorhub/debian-desktop-13:2.1.1
   os: linux
   app: debian-desktop-13
-  version: 2.0.1
+  version: 2.1.1
   icon: debian-linux
   displayName: Debian Desktop 13
   description: 'XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image. Ships a usable baseline: Firefox, git,
@@ -97,10 +97,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/devtools:2.0.2
+- image: docker.io/xorhub/devtools:2.1.0
   os: linux
   app: devtools
-  version: 2.0.2
+  version: 2.1.0
   icon: visual-studio-code
   displayName: DevTools (hardened)
   description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) on top of the desktop baseline (Firefox,
@@ -136,10 +136,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/devtools-dev:2.0.2
+- image: docker.io/xorhub/devtools-dev:2.1.0
   os: linux
   app: devtools-dev
-  version: 2.0.2
+  version: 2.1.0
   icon: visual-studio-code
   displayName: DevTools (dev)
   description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) on top of the desktop baseline (Firefox,
@@ -172,10 +172,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/fedora-desktop-43:2.0.1
+- image: docker.io/xorhub/fedora-desktop-43:2.1.1
   os: linux
   app: fedora-desktop-43
-  version: 2.0.1
+  version: 2.1.1
   icon: fedora
   displayName: Fedora Desktop 43
   description: 'XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full. Ships a usable baseline: Firefox,
@@ -270,10 +270,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/hermes-agent:2.0.2
+- image: docker.io/xorhub/hermes-agent:2.1.0
   os: linux
   app: hermes-agent
-  version: 2.0.2
+  version: 2.1.0
   icon: hermes-agent
   displayName: Hermes-Agent (hardened)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
@@ -312,10 +312,10 @@ images:
       description: Serve the Hermes web dashboard in a Firefox kiosk (127.0.0.1:9119). Boolean '1'/'0'; set '0' to disable
         the server and fall back to the embedded chat TUI.
       default: '1'
-- image: docker.io/xorhub/hermes-agent-dev:2.0.2
+- image: docker.io/xorhub/hermes-agent-dev:2.1.0
   os: linux
   app: hermes-agent-dev
-  version: 2.0.2
+  version: 2.1.0
   icon: hermes-agent
   displayName: Hermes-Agent (dev)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
@@ -387,10 +387,10 @@ images:
       protocols:
       - vnc
       default: '1'
-- image: docker.io/xorhub/ubuntu-desktop-noble:2.0.1
+- image: docker.io/xorhub/ubuntu-desktop-noble:2.1.1
   os: linux
   app: ubuntu-desktop-noble
-  version: 2.0.1
+  version: 2.1.1
   icon: ubuntu-linux
   displayName: Ubuntu Desktop Noble
   description: 'XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image. Ships a usable baseline: Firefox, git,

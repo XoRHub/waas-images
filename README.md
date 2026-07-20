@@ -10,12 +10,12 @@ base/ubuntu         core-ubuntu-noble(-full), core-debian-13(-full) — ┐
 base/fedora         core-fedora-43(-full), dnf sibling                │
                     (own Dockerfile + rootfs copy)                    │
 desktop/xfce        ubuntu-desktop-noble, debian-desktop-13 — XFCE    │
-                    on the *-full core (VNC+RDP+SSH); also            ├─ layers
-                    core-ubuntu-noble-xfce, VNC-only, the             │
-                    devtools parent                                   │
-desktop/xfce-fedora fedora-desktop-43 — XFCE on core-fedora-43-full   │
+                    + baseline (firefox/git/ssh/mise) on the *-full    │
+                    core (VNC+RDP+SSH); also core-ubuntu-noble-xfce,  ├─ layers
+                    VNC-only, the devtools parent                     │
+desktop/xfce-fedora fedora-desktop-43 — same baseline, dnf sibling    │
 apps/firefox        policy-managed Firefox, single-app kiosk          │
-apps/devtools       VS Code + toolchain (+ devtools-dev)              │
+apps/devtools       VS Code + build toolchain (+ devtools-dev)        │
 apps/libreoffice    recipe:-generated (no Dockerfile in tree)         │
 apps/chrome         recipe:-generated, third-party repo               │
 apps/hermes-agent   Hermes Agent, dashboard kiosk (+ -dev variant)    ┘
@@ -96,6 +96,8 @@ together (`ci/tests/test_publish_dockerhub_readme.py`).
 | Readiness/liveness | TCP open on the template port ⇔ protocol server accepting connections (matches the operator's TCP probes) |
 | User | `waas_user`, UID/GID `1000:1000` (build-args `WAAS_USER`/`WAAS_UID`/`WAAS_GID`), home **`/home/waas_user`** = operator's PVC mount (`DefaultHomeMountPath`); fresh PVCs are seeded from `/etc/skel` |
 | Writable paths | `/home/waas_user` (PVC), `/tmp`, `/run` (emptyDirs) — everything else read-only-safe |
+| Desktop baseline | `desktop/xfce` and `desktop/xfce-fedora` ship Firefox, git, **openssh-client**, curl, vim, less and **mise** — inherited by the three OS desktops and, via `core-ubuntu-noble-xfce`, by `apps/devtools`. Kiosk apps built straight on a core image are deliberately excluded (no shell to use it). Before this, a desktop was XFCE and nothing else, and no image in the repo could `git push` over SSH |
+| Persistent tooling | **mise** ships on both profiles (it needs no privileges): toolchains install under `~/.local/share/mise`, i.e. on the PVC, so they survive pod restarts. Wired two ways: shims first on `PATH` (non-interactive contexts) and `mise activate` from `/etc/bash.bashrc` (interactive shells). Two caveats: shims shadow the image's own tools, and this covers toolchains only — system libraries still mean `sudo apt install` on a `-dev` tag, still lost on restart (HARDENING.md § Durable tooling) |
 | Init hook | optional ConfigMap mounted at `/etc/waas/init.d/` — `*.sh` sourced at boot after the image's own `entrypoint.d/` hooks (UID 1000, no privilege change; see HARDENING.md) |
 | Dev profile | `-dev` tags only (e.g. `devtools-dev`): sudo NOPASSWD baked, `WAAS_PROFILE=dev` warning at boot; pod must set `readOnlyRootFilesystem: false`, `allowPrivilegeEscalation: true` AND keep the runtime default capability set (cap-drop ALL keeps sudo dead); keep the catalog `allowedGroups` gate (HARDENING.md § Reduced profile) |
 | Required env | `WAAS_DESKTOP_PASSWORD` — one session password shared by VNC and RDP (the xrdp bridge forwards it, so they cannot differ). **Refuses to start without it.** The legacy names `VNC_PW`/`RDP_PASSWORD` are refused with an explicit error (see § Env naming). |

@@ -146,6 +146,36 @@ the published catalog's `recommended` block (`profile: normal`) from
 the three exceptions above — not a guarantee against drift, but keep
 both in sync when editing either.
 
+### Durable tooling without the reduced profile
+
+The "lost on pod restart" caveat above is unchanged and still exact: apt
+state lives in the container layer and dies with the pod. Nothing here
+makes `sudo apt install` persist, and no image-side mechanism can — an
+overlay would need `mount(2)`, i.e. `CAP_SYS_ADMIN`, which § Known gaps
+declines to grant.
+
+What *is* solved is the underlying need. The desktop layer
+(`desktop/xfce`, `desktop/xfce-fedora`) ships **mise**, so every image
+built on it inherits it: the three OS desktops and, through
+`core-ubuntu-noble-xfce`, `apps/devtools`. `apps/hermes-agent` carries
+its own copy — it is a kiosk on `core-ubuntu-noble`, outside the XFCE
+lineage. mise installs toolchains under `~/.local/share/mise`, on the
+home PVC, so they survive restarts by construction. It writes nothing
+outside `$HOME` and `/tmp` and needs no privileges, so it ships on the
+**hardened** variants too, not only on `-dev` (verified: installs a new
+tool fine under `--read-only`). A user who only needs a language runtime
+or a CLI tool therefore does not need the reduced profile at all —
+prefer the hardened tag.
+
+The gap it does not close: **system libraries**. Anything requiring a
+`.so`, a codec or an apt package's maintainer scripts still means `sudo
+apt install` on a `-dev` image, and still dies with the pod.
+
+Two consequences worth stating: what a user installs via mise lives on
+the PVC, so it is outside the trivy gate and the SBOM by construction
+(same as anything `/etc/waas/init.d/` pulls in); and mise's shims sit
+first on `PATH`, so a user-installed `python3` shadows the image's.
+
 ## Runtime init hook (`/etc/waas/init.d/`)
 
 `waas-entrypoint` sources `/etc/waas/init.d/*.sh` after the image's own

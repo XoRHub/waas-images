@@ -95,6 +95,22 @@ fi
 # produce the artifact would mislead provenance tooling.
 CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
+# NO_CACHE=1 (workflow_dispatch's no_cache input) rebuilds every layer
+# from scratch. The escape hatch for the case the layer cache cannot
+# express: a package this repo installs gets a security update, but no
+# RUN text changed, so the GHA cache keeps serving the layer that has
+# the old version — `apt-get install` never re-runs to see the new
+# candidate. Editing a Dockerfile to force a miss would work but ties
+# cache invalidation to an unrelated content change; this keeps it an
+# explicit operator action, and keeps the package set a function of the
+# commit rather than of the build date (which is what makes the
+# attested SBOM meaningful — see merge_image.sh's sbom+attest section).
+NO_CACHE_FLAG=""
+if [ "${NO_CACHE:-0}" = "1" ]; then
+    log "NO_CACHE=1: ignoring the layer cache for this build"
+    NO_CACHE_FLAG="--no-cache"
+fi
+
 # One flag set for both invocations below: the artifact pushed after the
 # gate must be byte-identical (same config, cache-hot layers) to the
 # one that was smoke-tested.
@@ -125,7 +141,14 @@ buildx_build() {
 }
 
 log "build (${IMG_ARCH}) ${IMAGE}:${ARCH_TAG}"
-buildx_build --load --cache-to "type=gha,scope=${IMG_NAME}-${ARCH},mode=max"
+# ${NO_CACHE_FLAG} on THIS invocation only: it also --cache-to's, so the
+# from-scratch layers it produces repopulate the GHA cache, and the push
+# build below then hits that fresh cache and stays byte-identical to what
+# was smoke-tested. Passing --no-cache there too would rebuild everything
+# a second time and break exactly that guarantee.
+# shellcheck disable=SC2086
+buildx_build --load ${NO_CACHE_FLAG} \
+    --cache-to "type=gha,scope=${IMG_NAME}-${ARCH},mode=max"
 
 # ---------------------------------------------------------------- smoke
 log "smoke test"

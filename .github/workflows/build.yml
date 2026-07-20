@@ -78,6 +78,15 @@ on:
           where GHCR already has it and Docker Hub doesn't).
         type: boolean
         default: false
+      no_cache:
+        description: >-
+          Rebuild every layer from scratch, ignoring the GHA layer
+          cache. The way to pick up a security update in a package
+          this repo installs but whose RUN text has not changed — the
+          cache would otherwise keep serving the layer built before
+          the fix shipped (see ci/build_image.sh's NO_CACHE block).
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -171,6 +180,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
       IMG_BUILD_ARGS: ${{ matrix.IMG_BUILD_ARGS }}
+      NO_CACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.no_cache && '1' || '0' }}
       IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
       IMG_DOCKERFILE: ${{ matrix.IMG_DOCKERFILE }}
       IMG_OS: ${{ matrix.IMG_OS }}
@@ -294,6 +304,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
       IMG_BUILD_ARGS: ${{ matrix.IMG_BUILD_ARGS }}
+      NO_CACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.no_cache && '1' || '0' }}
       IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
       IMG_DOCKERFILE: ${{ matrix.IMG_DOCKERFILE }}
       IMG_OS: ${{ matrix.IMG_OS }}
@@ -412,6 +423,7 @@ jobs:
       IMG_VERSION: ${{ matrix.IMG_VERSION }}
       IMG_ARCH: ${{ matrix.IMG_ARCH }}
       IMG_BUILD_ARGS: ${{ matrix.IMG_BUILD_ARGS }}
+      NO_CACHE: ${{ github.event_name == 'workflow_dispatch' && inputs.no_cache && '1' || '0' }}
       IMG_FROM_REF: ${{ matrix.IMG_FROM_REF }}
       IMG_DOCKERFILE: ${{ matrix.IMG_DOCKERFILE }}
       IMG_OS: ${{ matrix.IMG_OS }}

@@ -9,8 +9,9 @@ layer: apps
 description: >
   Hermes Agent (Nous Research) with its web dashboard in a Firefox
   kiosk (chat TUI embedded) — self-improving AI agent; keys, sessions,
-  memories and skills persist in ~/.hermes on the home volume.
-version: "2.0.2"
+  memories and skills persist in ~/.hermes on the home volume, and mise
+  installs extra toolchains there too, so they survive pod restarts.
+version: "2.1.0"
 from: core-ubuntu-noble
 icon: hermes-agent
 

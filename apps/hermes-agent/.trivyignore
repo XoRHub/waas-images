@@ -18,6 +18,7 @@
 #
 # Re-evaluate if Trivy changes how it resolves third-party .deb Firefox
 # builds, or if these CVE IDs start showing up with a different
-# (non-snap) fixed version. Keep in sync with apps/firefox/.trivyignore.
+# (non-snap) fixed version. Keep in sync with apps/firefox/.trivyignore
+# and apps/devtools/.trivyignore — all three carry this same pair.
 CVE-2022-25235
 CVE-2022-25236

@@ -116,6 +116,95 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/waas_user/.gnupg
 
+# mise — user-level toolchain manager. The point is persistence: only
+# /home/waas_user is a PVC, so anything `sudo apt install` puts in the
+# container layer dies with the pod. mise installs tools under
+# ~/.local/share/mise, i.e. ON the home volume, so they survive restarts.
+# It needs no privileges and writes nothing outside $HOME + /tmp, which is
+# why it ships on the hardened variant too (read-only rootfs and all), not
+# just on -dev.
+#
+# Verification chain mirrors the Mozilla block above: pin the SIGNING KEY
+# fingerprint, not a per-arch digest. A literal SHA256 would need one ARG
+# per arch and renovate cannot recompute either, so a version bump would
+# break the build every single time.
+# renovate: datasource=github-releases depName=jdx/mise
+ARG MISE_VERSION=v2026.7.7
+# DL3003: a WORKDIR would leak /tmp as every later step's cwd for one cd;
+# DL3008: gpg is build scaffolding, purged at the end of this same layer.
+# hadolint ignore=DL3003,DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gpg && \
+    case "${TARGETARCH}" in \
+        amd64) MISE_ARCH=x64 ;; \
+        arm64) MISE_ARCH=arm64 ;; \
+        *) echo "unsupported TARGETARCH ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    MISE_TARBALL="mise-${MISE_VERSION}-linux-${MISE_ARCH}.tar.gz" && \
+    cd /tmp && \
+    # Saved under its exact release filename on purpose: SHASUMS256.asc
+    # lists paths as "./mise-<ver>-linux-<arch>.tar.gz", so `sha256sum -c`
+    # resolves them relative to cwd. Rename it and the check fails with a
+    # confusing "FAILED open or read".
+    curl -fsSL -4 --max-time 60 \
+        "https://github.com/jdx/mise/releases/download/${MISE_VERSION}/${MISE_TARBALL}" \
+        -o "${MISE_TARBALL}" && \
+    curl -fsSL -4 --max-time 20 \
+        "https://github.com/jdx/mise/releases/download/${MISE_VERSION}/SHASUMS256.asc" \
+        -o SHASUMS256.asc && \
+    curl -fsSL -4 --max-time 20 https://mise.jdx.dev/gpg-key.pub \
+        | gpg --dearmor -o /tmp/mise-release-key.gpg && \
+    gpg --show-keys --with-colons /tmp/mise-release-key.gpg \
+        | grep -q "^fpr:.*24853EC9F655CE80B48E6C3A8B81C9D17413A06D" && \
+    gpgv --keyring /tmp/mise-release-key.gpg SHASUMS256.asc && \
+    # Checksums come out of the clearsigned body only AFTER gpgv accepted
+    # it, so the digest we compare against is itself signed.
+    grep "  ./${MISE_TARBALL}\$" SHASUMS256.asc | sed 's|\./||' | sha256sum -c - && \
+    tar -xzf "${MISE_TARBALL}" -C /usr/local/bin --strip-components=2 mise/bin/mise && \
+    rm -f "${MISE_TARBALL}" SHASUMS256.asc /tmp/mise-release-key.gpg && \
+    test "$(mise --version | cut -d' ' -f1)" = "${MISE_VERSION#v}" && \
+    apt-get purge -y --auto-remove gpg && \
+    apt-get clean && \
+    # The base exports HOME=/home/waas_user, and this image RUNs as root —
+    # so root's `mise --version` above just seeded ~/.cache/mise and
+    # ~/.local/share/mise ROOT-OWNED inside the user's home. Same trap gpg
+    # falls into (hence the .gnupg removal alongside). Harmless under a
+    # k8s PVC, which shadows the dir, but a docker named volume COPIES
+    # image content in and the user then cannot write their own cache.
+    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
+        /home/waas_user/.gnupg /home/waas_user/.cache /home/waas_user/.local
+
+# Both mise wiring mechanisms, because they cover different contexts and
+# upstream recommends the pair (dev-tools/shims.html):
+#   shims on PATH — the only thing that works in NON-interactive contexts
+#     (the agent's subprocesses, XFCE menu launches, WAAS_APP, scripts).
+#     Verified: a `bash -c` reads neither /etc/bash.bashrc nor ~/.bashrc.
+#   `mise activate` — richer (mise's [env] vars, cd/enter/leave hooks) but
+#     driven by the prompt hook, so interactive shells only.
+# No precedence problem: activate strips the shims dir from PATH itself.
+# A missing shims dir on a fresh PVC is inert (execvp skips it), so there
+# is nothing to pre-create — and pre-creating would be pointless anyway,
+# the PVC shadows whatever the image puts at that path.
+ENV PATH=/home/waas_user/.local/share/mise/shims:/home/waas_user/.local/bin:$PATH
+# Pinned explicitly rather than left to XDG defaults: the PATH above
+# hardcodes the shims location, so the data dir must not be free to move.
+# startxfce4/dbus can inject XDG_* into the session, and an XDG_CACHE_HOME
+# landing on a tmpfs would silently stop the cache from persisting.
+ENV MISE_DATA_DIR=/home/waas_user/.local/share/mise \
+    MISE_CACHE_DIR=/home/waas_user/.cache/mise
+
+# Interactive activation goes in /etc/bash.bashrc, NOT /etc/skel/.bashrc:
+# waas-entrypoint only seeds skel when ~/.profile is absent, so an
+# existing PVC would never see a skel change. /etc/bash.bashrc lives in
+# the image layer and therefore covers old and new volumes alike.
+# SC2016 is the intent, not a bug: the single quotes keep $(mise activate
+# bash) LITERAL so it lands unexpanded in /etc/bash.bashrc and runs per
+# shell. Expanding it here would bake this build's activation script into
+# the image and silently rot on the next mise bump.
+# hadolint ignore=SC2016
+RUN printf '\n# mise (waas): user toolchains live on the home PVC — see the Dockerfile.\neval "$(mise activate bash)"\n' \
+        >> /etc/bash.bashrc
+
 # Kiosk wrapper, dashboard entrypoint hook, firefox policies.
 COPY rootfs/ /
 

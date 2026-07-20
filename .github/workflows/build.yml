@@ -567,3 +567,13 @@ jobs:
       # fail every real change).
       - name: Commit catalog-waas-images.yaml to main
         run: sh ci/commit_catalog.sh catalog-waas-images.yaml
+      # Docker Hub shows no README unless full_description is pushed via
+      # its HTTP API (GHCR gets the repo README for free through the
+      # source label — Hub has no equivalent). Same render as the job
+      # summary above, spliced into ci/dockerhub-readme-template.md.
+      # LAST step on purpose: a red step skips the rest
+      # of the job even under job-level continue-on-error, and this one
+      # failing must never veto the catalog commit (it did once — run
+      # 29609992892, 403s from a PAT lacking read/write/delete scope).
+      - name: Publish per-image overviews to Docker Hub
+        run: uv run ci/publish_dockerhub_readme.py

@@ -99,6 +99,10 @@ immutable and CI refuses to move an already-published `<version>` tag.
 - If you touched `icon:` in a manifest, verify the slug resolves at
   `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/<slug>.svg`
   (200 = valid; an invalid slug fails silently, not in CI).
+- If the catalog label derived from your variant id reads badly
+  (branding case, acronyms, two variants sharing a base name), set
+  `displayName:` in the manifest (root or per variant, like `icon:`) —
+  see README § Image catalogs, Design notes.
 - Regenerate derived files that ended up stale in your working tree
   (`make recipes`, `python3 ci/generate_pipeline.py [--emitter github]`) —
   they're gitignored build artifacts, not something to hand-edit or commit.

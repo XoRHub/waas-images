@@ -3,13 +3,13 @@ layer: apps
 description: >
   Managed, policy-hardened Firefox in a single-app kiosk session — the
   browser fills the screen, no desktop behind it.
-version: "2.0.1"
+version: "2.0.2"
 from: core-ubuntu-noble
 icon: firefox
 
-# packages.mozilla.org has historically been amd64-first; arm64 stays off
-# until the repo's arm64 debs are verified on the Turing Pi workers.
-archs: [linux/amd64]
+# packages.mozilla.org ships arm64 firefox debs (verified 2026-07-17,
+# binary-arm64 Packages lists the same versions as amd64) — inherit the
+# default amd64+arm64 matrix.
 
 variants:
   - name: firefox

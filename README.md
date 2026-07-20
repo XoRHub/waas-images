@@ -17,7 +17,8 @@ desktop/xfce-fedora fedora-desktop-43 — XFCE on core-fedora-43-full   │
 apps/firefox        policy-managed Firefox, single-app kiosk          │
 apps/devtools       VS Code + toolchain (+ devtools-dev)              │
 apps/libreoffice    recipe:-generated (no Dockerfile in tree)         │
-apps/chrome         recipe:-generated, third-party repo               ┘
+apps/chrome         recipe:-generated, third-party repo               │
+apps/hermes-agent   Hermes Agent, dashboard kiosk (+ -dev variant)    ┘
 images.yaml         global build config (OS matrix, archs, scan gate)
 ci/                 pipeline generator + recipe compiler, build/smoke scripts
 .github/workflows/  GitHub Actions pipeline (canonical forge)
@@ -50,6 +51,40 @@ Every `apps/*` image is built on the VNC-only `core-ubuntu-noble` core
 `devtools`, a real desktop on the VNC-only `core-ubuntu-noble-xfce`;
 never the `-full` core either way) and never ships `xrdp` or `sshd` at
 all: an image dedicated to one app can only ever activate VNC.
+
+## Try it standalone
+
+No platform needed to evaluate an image — it runs under the same
+constraints WaaS enforces in-cluster (non-root, read-only rootfs,
+every capability dropped):
+
+```shell
+docker run --rm -it \
+  --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp --tmpfs /run --tmpfs /home/waas_user:mode=1777 \
+  -p 5901:5901 -e WAAS_DESKTOP_PASSWORD=changeme \
+  docker.io/xorhub/<image>:<version>
+```
+
+Then point any VNC client at `localhost:5901` (password `changeme`).
+
+Published images are multi-arch manifest lists, cosign-signed (keyless
+OIDC) with a CycloneDX SBOM attested to the image itself:
+
+```shell
+cosign verify docker.io/xorhub/<image>:<version> \
+  --certificate-identity-regexp 'github.com/XoRHub/waas-images' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+cosign verify-attestation --type cyclonedx docker.io/xorhub/<image>:<version> \
+  --certificate-identity-regexp 'github.com/XoRHub/waas-images' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+This section and `ci/dockerhub-readme-template.md` are the same
+content on purpose — GHCR package pages render this README (via
+`org.opencontainers.image.source`; GHCR has no per-package README),
+Docker Hub renders the template — and a test locks the command blocks
+together (`ci/tests/test_publish_dockerhub_readme.py`).
 
 ## Contract with the Workspace CR
 
@@ -154,8 +189,8 @@ Tags are **immutable**:
 
 Multi-arch: `linux/amd64` + `linux/arm64` built NATIVELY on the amd/arm
 runner fleets — no QEMU in the nominal path (per-image override, e.g.
-Firefox is amd64-only until packages.mozilla.org's arm64 debs are
-validated). Pipeline: generate (incl. recipe compilation) →
+Chrome is amd64-only because Google publishes no arm64 deb).
+Pipeline: generate (incl. recipe compilation) →
 hadolint/shellcheck → per image and per arch *build → smoke → push
 `-g<sha>-<arch>` (OCI mediatypes)*, then a merge job assembles the
 annotated manifest list, mirrors it to Docker Hub, cosign-signs the
@@ -254,7 +289,8 @@ into the image:
 WaaS (`waas`) lets a user create a workspace straight from an
 admin-approved registry image, without a per-image WorkspaceTemplate.
 Its api-server's `CatalogSyncWorker` periodically fetches catalog files —
-`{image, os, app, version, icon, displayName, architectures}` lists,
+`{image, os, app, version, icon, displayName, description,
+architectures}` lists,
 plus `profile`/`recommended` deployment hints on
 `catalog-waas-images.yaml` entries (see Design notes below), under
 `apiVersion: waas.xorhub.io/catalog/v1` (full contract: the JSON
@@ -271,7 +307,7 @@ path filter anyway.
 | Catalog | Generator | When |
 |---|---|---|
 | `catalog-waas-images.yaml` — the images this repo builds | `ci/generate_catalog.py` (reuses `generate_pipeline.py`'s manifest discovery — the catalog cannot drift from the build matrix) | `build.yml`'s `catalog` job, every default-branch run, after `build`/`merge` |
-| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (add/remove/rename images and icons there; the script only resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable) | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
+| `catalog-kasmweb.yaml` — upstream `docker.io/kasmweb/*` images | `ci/generate_kasm_catalog.py` over the hand-curated `kasm/catalog-mapping.yaml` (rename images or add icons/displayName/description there by hand; the script resolves each image's newest `X.Y.Z` release tag from Docker Hub, falling back to the mapping's `knownVersion` when Hub is unreachable, then derives `architectures`/`profile`/`recommended` — see Design notes below). `generate_kasm_catalog.py <name>` (e.g. `vs-code`, no registry prefix) resolves/probes just that one image and upserts it in place — CI or by hand, same script — appending a minimal mapping entry first if `<name>` isn't tracked yet. | `catalog-kasmweb.yml`, scheduled daily `0 6 * * *` UTC + manual `workflow_dispatch` |
 
 Both files are committed via the Contents API (`ci/commit_catalog.sh`),
 not `git push`: `main` requires verified signatures and a bot's plain
@@ -305,12 +341,19 @@ Design notes:
   tagging), so the ref is already as stable as a digest.
 - The `os:` field is always `linux` (workspace OS family, what guacd
   cares about) — not the build distro that `io.xorhub.waas.os` carries.
-- `displayName` is always the manifest's `description:`, truncated to
-  80 chars.
+- `displayName` is a human-readable label: the manifest's optional
+  `displayName:` (root, overridable per variant — the `icon:`
+  convention) when set, else derived from the variant id
+  (dashes/underscores → spaces, title case: `ubuntu-desktop-noble` →
+  `Ubuntu Desktop Noble`). Ids the naive rule renders badly get an
+  explicit `displayName:` in their manifest (`LibreOffice`,
+  `DevTools (hardened)`), never a hard-coded exception in the
+  generator. `description` carries the manifest's `description:`
+  whole — the old 80-char `displayName` truncation is gone.
 - `core-*` variants (internal build parents — base layer, plus the
   VNC-only desktop parent for `apps/*`) never appear here at all: the
   generator skips any variant name starting with `core-` before it
-  reaches the fallback/truncation logic above.
+  reaches the fallback logic above.
 - **`main` is the only ref, always overwritten in place**: this repo has
   no repo-global version or git tag (each image versions independently
   via its manifest), so there is nothing meaningful to pin a catalog
@@ -324,15 +367,34 @@ Design notes:
   `recommended` block, both derived from this repo's own
   `manifest.yaml`/`HARDENING.md` doctrine (`ci/generate_catalog.py`'s
   `RECOMMENDATION_STANDARD`/`RECOMMENDATION_DEV` + a `smoke:`-driven
-  `env` hint list) — never hand-written. `catalog-kasmweb.yaml` has
-  neither: those upstream images have no local manifest/doctrine to
-  derive from.
+  `env` hint list) — the securityContext/volumes parts are never
+  hand-written; the `env` list additionally merges the manifest's own
+  image-specific `env:` hints (root or per variant, manifest wins a
+  name collision). `catalog-kasmweb.yaml` entries
+  carry the same two fields, but since those upstream images have no
+  local manifest/doctrine to derive a profile from statically,
+  `ci/generate_kasm_catalog.py --probe-hardening` (`catalog-kasmweb.yml`
+  only — too slow/Docker-dependent for `make catalogs`) derives them
+  empirically: `ci/probe_kasm_hardening.sh` actually pulls+runs each
+  resolved image under increasingly strict Docker flags (the same
+  technique `ci/smoke_test.sh` uses on this repo's own images) and sets
+  `profile: hardened`/`normal` from whether it survives
+  `readOnlyRootFilesystem`/`cap-drop ALL`. A `normal` verdict's
+  `recommended` only claims the documented Kasm baseline
+  (`runAsNonRoot`/`runAsUser`/`fsGroup: 1000`) — no
+  `securityContext`/`volumes` claim beyond what was actually verified.
+  Probing a given `image:version` again is skipped once
+  `catalog-kasmweb.yaml` already has a verdict for that exact ref (see
+  `previous` in `ci/generate_kasm_catalog.py`'s `catalog()`).
 - `architectures` (waas's per-image nodeSelector prefill hint) is
-  derived from the build matrix (`archs:`) on `catalog-waas-images.yaml`
-  — never hand-written, same doctrine as `profile`/`recommended` — but
-  hand-curated in `kasm/catalog-mapping.yaml` for `catalog-kasmweb.yaml`
-  (kasmweb's plain `X.Y.Z` tags carry no per-arch signal to derive
-  from; they are amd64-only manifests). Omitted = unknown, waas falls
+  derived from the build matrix (`archs:`) on `catalog-waas-images.yaml`,
+  and from Docker Hub's per-tag manifest-list data
+  (`ci/generate_kasm_catalog.py`'s `hub_architectures()`) on
+  `catalog-kasmweb.yaml` — never hand-written on either file. (A
+  hand-curated `architectures:` field used to live in
+  `kasm/catalog-mapping.yaml` and drifted stale — it claimed kasmweb's
+  plain `X.Y.Z` tags were amd64-only, which live Hub data disproved:
+  they're multi-arch manifest lists.) Omitted = unknown, waas falls
   back to the entry-level `spec.architectures` hint.
 
 ## Per-image docs
@@ -356,6 +418,18 @@ nothing to keep in sync. The durable, versioned usage contract (WAAS_*
 env vars, ports, protocols common to every image) lives in this README
 instead — what `org.opencontainers.image.documentation` actually
 points at (§ Image metadata).
+
+The same render is also pushed as each image's **Docker Hub overview**
+by `ci/publish_dockerhub_readme.py` (same `catalog` job): GHCR pages
+show this repo's README automatically via
+`org.opencontainers.image.source`, but Docker Hub displays nothing
+unless `full_description` is set through its HTTP API — the registry
+push protocol cannot carry it. The overview splices the per-image
+section into `ci/dockerhub-readme-template.md` (`{about}`/`{image}`
+placeholders — shared standalone-quickstart and cosign-verify
+boilerplate, the template-plus-section pattern
+kasmtech/workspaces-images uses). Best-effort like the rest of the
+job: a repo not yet mirrored to Hub warns and is skipped.
 
 Local dev convenience: `make image-docs` prints the same output to
 stdout (no `$GITHUB_STEP_SUMMARY` outside CI).

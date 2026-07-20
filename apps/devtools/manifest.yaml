@@ -7,16 +7,19 @@ description: >
   XFCE work desktop with VS Code (Microsoft APT repo, fingerprint
   pinned) and a dev toolchain (git, build-essential, python3, jq,
   tmux, ...). No autostart: VS Code sits in the XFCE menu.
-version: "2.0.1"
+version: "2.0.2"
 from: core-ubuntu-noble-xfce
 icon: visual-studio-code
 
-# amd64 first: that is the published catalog contract. Microsoft ships
-# arm64 debs too — extending is a catalog decision, not a build one.
-archs: [linux/amd64]
+# packages.microsoft.com/repos/code ships arm64 code debs (verified
+# 2026-07-17) — inherit the default amd64+arm64 matrix.
 
 variants:
+  # Catalog labels (waas picker), per variant: CamelCase branding the
+  # humanize fallback can't derive, plus the profile suffix that
+  # disambiguates the two variants sharing this base name.
   - name: devtools
+    displayName: DevTools (hardened)
     smoke:
       vnc: true
 
@@ -32,6 +35,7 @@ variants:
   # installs land in the container layer: lost on pod restart, only
   # /home/waas_user survives.
   - name: devtools-dev
+    displayName: DevTools (dev)
     profile: dev
     buildArgs:
       INSTALL_SUDO: "1"

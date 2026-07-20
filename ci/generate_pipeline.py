@@ -111,10 +111,21 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 # slug, never baked into the image. Root + per-variant
                 # override, like smoke:/buildArgs:.
                 "icon": v.get("icon", m.get("icon", "")),
+                # Catalog-only key like icon (root + per-variant
+                # override): explicit human-readable label. Empty =
+                # generate_catalog.py derives one from the variant name
+                # (humanize).
+                "displayName": v.get("displayName", m.get("displayName", "")),
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
                 "build_args": build_args,
                 "smoke": v.get("smoke", {}),
+                # Catalog-only key like icon/displayName (root + per-variant
+                # override): image-specific EnvHint(s) generate_catalog.py
+                # merges into recommended.env on top of the smoke:-derived
+                # protocol hints. For variables an image honors that no
+                # protocol table can know about (e.g. WAAS_HERMES_DASHBOARD).
+                "env": v.get("env", m.get("env", [])),
             }
     return variants
 

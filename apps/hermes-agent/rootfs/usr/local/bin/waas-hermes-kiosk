@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Default WAAS_APP of the hermes-agent image: Firefox kiosk on the
+# local Hermes dashboard (supervised separately — see the entrypoint
+# hook 60-hermes-dashboard.sh). The dashboard's Chat tab embeds the
+# full TUI (xterm.js), so this one surface covers chat AND
+# status/keys/cron/logs.
+#
+# Supervisord starts the dashboard and this session concurrently, so
+# wait for the port; if it never comes up (WAAS_HERMES_DASHBOARD=0 with
+# WAAS_APP left at its default, or a crashed server), fall back to the
+# plain xterm TUI instead of a browser error page — the session must
+# always land somewhere usable.
+set -euo pipefail
+
+DASHBOARD_URL="http://127.0.0.1:9119"
+
+for _ in $(seq 1 60); do
+    if curl -sf -o /dev/null --max-time 1 "${DASHBOARD_URL}"; then
+        exec firefox "${DASHBOARD_URL}"
+    fi
+    sleep 0.5
+done
+
+echo "waas-hermes-kiosk: dashboard not reachable after 30s — falling back to the hermes TUI" >&2
+exec xterm -fa monospace -fs 12 -e hermes

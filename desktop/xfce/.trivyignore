@@ -1,0 +1,26 @@
+# .trivyignore — desktop/xfce context, so it covers ubuntu-desktop-noble,
+# debian-desktop-13 AND core-ubuntu-noble-xfce (the devtools parent).
+# Added 2026-07-20 with the desktop baseline, which brings Firefox into
+# this layer.
+#
+# CVE-2022-25235 / CVE-2022-25236 (expat, bundled in the "firefox"
+# package): trivy's Ubuntu OS-package DB tracks vulnerabilities for the
+# distro's own "firefox" package, which since Ubuntu 22.04+ is a
+# transitional stub that just installs the snap, versioned
+# "1:1snap1-0ubuntu1" — the epoch (1:) makes it dpkg-compare as newer
+# than ANY real Mozilla .deb build (ours has version scheme
+# "<version>~buildN", no epoch), so trivy always reports our real,
+# up-to-date Firefox as vulnerable to these two 2022 CVEs.
+# Documented, reproduced elsewhere: aquasecurity/trivy discussion #6792
+# (https://github.com/aquasecurity/trivy/discussions/6792).
+#
+# Unlike the other three copies, these two entries are added BEFORE a red
+# run rather than after one: the mechanism above is the same known one and
+# the ubuntu leg will certainly hit it. The debian-desktop-13 leg is the
+# unverified part — Debian's package layout differs, so it may never
+# produce these findings at all, in which case the entries are simply
+# inert there. Drop them if a trivy bump stops flagging third-party .deb
+# Firefox builds. Keep in sync with apps/firefox/.trivyignore,
+# apps/hermes-agent/.trivyignore and apps/devtools/.trivyignore.
+CVE-2022-25235
+CVE-2022-25236

@@ -33,3 +33,25 @@ CVE-2019-16776
 # npm CLI < 6.13.4: global node_modules binary overwrite on install.
 # Same misdetected extension manifest, same reasoning.
 CVE-2019-16777
+
+# ---------------------------------------------------------------------
+# Added 2026-07-20 with the Firefox block. A SECOND, unrelated false
+# positive — nothing to do with the VS Code/npm one above.
+#
+# CVE-2022-25235 / CVE-2022-25236 (expat, bundled in the "firefox"
+# package): trivy's Ubuntu OS-package DB tracks vulnerabilities for the
+# distro's own "firefox" package, which since Ubuntu 22.04+ is a
+# transitional stub that just installs the snap, versioned
+# "1:1snap1-0ubuntu1" — the epoch (1:) makes it dpkg-compare as newer
+# than ANY real Mozilla .deb build (ours has version scheme
+# "<version>~buildN", no epoch), so trivy always reports our real,
+# up-to-date Firefox as vulnerable to these two 2022 CVEs.
+# Documented, reproduced elsewhere: aquasecurity/trivy discussion #6792
+# (https://github.com/aquasecurity/trivy/discussions/6792).
+#
+# Revisit if trivy changes how it resolves third-party .deb Firefox
+# builds, or if these IDs start showing up with a different (non-snap)
+# fixed version. Keep in sync with apps/firefox/.trivyignore and
+# apps/hermes-agent/.trivyignore — all three carry this same pair.
+CVE-2022-25235
+CVE-2022-25236

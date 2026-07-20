@@ -1,8 +1,13 @@
 name: fedora-desktop
 layer: desktop
 os: fedora-43
-description: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
-version: "2.0.1"
+description: >
+  XFCE desktop on Fedora, VNC + RDP + SSH, derived from
+  core-fedora-43-full. Ships a usable baseline: Firefox, git,
+  openssh-clients, curl, vim, less, plus mise — which installs toolchains
+  into ~/.local/share/mise on the home volume, so they survive pod
+  restarts.
+version: "2.1.0"
 from: core-fedora-43-full
 icon: fedora
 

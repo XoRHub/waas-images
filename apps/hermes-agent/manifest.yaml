@@ -36,7 +36,6 @@ variants:
     displayName: Hermes-Agent (hardened)
     smoke:
       vnc: true
-      ssh: true
 
   - name: hermes-agent-dev
     displayName: Hermes-Agent (dev)
@@ -45,4 +44,3 @@ variants:
       INSTALL_SUDO: "1"
     smoke:
       vnc: true
-      ssh: true

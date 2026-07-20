@@ -51,24 +51,39 @@ RUN apt-get update && \
     printf 'Package: code*\nPin: origin packages.microsoft.com\nPin-Priority: 1000\n' \
         > /etc/apt/preferences.d/vscode && \
     apt-get update && \
+    apt-get update && \
+    # git, curl, vim, less, openssh-client, firefox and mise all come from
+    # the desktop baseline in desktop/xfce now — this image only carries
+    # what a desktop should NOT: VS Code, and the system compilers that
+    # mise cannot provide (build-essential is exactly the "system
+    # libraries" gap documented in HARDENING.md § Durable tooling).
+    # python3 stays despite mise being able to supply one: VS Code's
+    # Python extension expects a system interpreter, and a first-run
+    # `mise install python` would be a slow, network-dependent surprise.
     apt-get install -y --no-install-recommends \
         code \
-        git \
         build-essential \
         python3 \
         python3-venv \
         jq \
-        curl \
-        vim \
-        less \
         tmux \
     && apt-mark auto wget gpg >/dev/null && \
     # autoremove, not purge: a blind purge would drag away any package
     # above that Depends: on wget/gpg; dpkg -s makes that a build failure.
     apt-get autoremove -y --purge && \
-    dpkg -s code git build-essential python3 python3-venv jq curl vim less tmux >/dev/null && \
+    dpkg -s code build-essential python3 python3-venv jq tmux >/dev/null && \
+    # Inherited from the desktop baseline — assert it actually arrived, so
+    # a reparent or a baseline edit that drops one fails here instead of
+    # silently shipping a dev image that cannot `git push`.
+    dpkg -s git curl vim less openssh-client firefox >/dev/null && \
+    command -v mise >/dev/null && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/waas_user/.gnupg
+    # .wget-hsts: pre-dates this layer's rework — the Microsoft-key wget
+    # above runs as root while the base exports HOME=/home/waas_user, so
+    # it drops a root-owned dotfile in the user's home. Same class as the
+    # .gnupg removal it sits next to; swept here now that it was spotted.
+    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
+        /home/waas_user/.gnupg /home/waas_user/.wget-hsts
 
 # ---- dev variant (ubuntu-devtools-dev) --------------------------------
 # INSTALL_SUDO=1 is only ever set by the *-dev manifest variant (the

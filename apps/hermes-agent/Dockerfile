@@ -28,6 +28,14 @@ USER 0
 ARG TARGETARCH
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION=22.23.1
+# The npm bundled in the node tarball (10.9.8) ships two HIGH CVEs in its
+# OWN vendored deps — picomatch 4.0.3 (CVE-2026-33671) and sigstore 3.1.0
+# (CVE-2026-48815) — which gated the Trivy scan red. Neither is hermes
+# code and neither is reachable from anything we run, but the scan is a
+# hard gate, so upgrade npm rather than suppress: npm 12 drops picomatch
+# entirely and vendors sigstore 5.0.0 (fix landed in 4.1.1).
+# renovate: datasource=npm depName=npm
+ARG NPM_VERSION=12.0.1
 # renovate: datasource=github-tags depName=NousResearch/hermes-agent
 ARG HERMES_VERSION=v2026.7.7.2
 
@@ -51,18 +59,31 @@ RUN apt-get update && \
     curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
         | tar -xJ -C /usr/local --strip-components=1 --no-same-owner && \
     node --version && \
+    npm install -g "npm@${NPM_VERSION}" && \
+    npm --version && \
     curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
         | bash -s -- --branch "${HERMES_VERSION}" --skip-setup --non-interactive --skip-browser && \
     /usr/local/bin/hermes --version && \
-    # Prebuild the dashboard's web UI: `hermes dashboard` otherwise
-    # npm-builds it lazily on first launch, which can never work at
-    # runtime (root-owned tree, read-only rootfs). node_modules is
-    # build scaffolding only — the Python server serves the built
-    # assets without it (verified: 200 after full prune).
+    # Prebuild BOTH front-ends: each otherwise npm-installs and builds
+    # itself lazily on first launch, which can never work at runtime
+    # (root-owned tree, read-only rootfs).
+    #   web    — the dashboard UI, served by the Python server.
+    #   ui-tui — the terminal chat UI behind the kiosk's fallback path.
+    # One install for both: npm workspaces hoist to the root
+    # node_modules, and a second `npm install --workspace ...` would
+    # re-resolve that shared tree.
+    # node_modules is build scaffolding only, for both: the Python
+    # server serves web's built assets without it (verified: 200 after
+    # full prune), and ui-tui/scripts/build.mjs esbuilds a deliberately
+    # self-contained dist/entry.js ("No runtime node_modules needed").
     cd /usr/local/lib/hermes-agent && \
-    npm install --workspace web && \
+    npm install --workspace web --workspace ui-tui && \
     npm run build -w web && \
-    rm -rf node_modules web/node_modules /root/.npm /root/.hermes && \
+    npm run build -w ui-tui && \
+    test -f hermes_cli/web_dist/index.html && \
+    test -f ui-tui/dist/entry.js && \
+    rm -rf node_modules web/node_modules ui-tui/node_modules \
+        /root/.npm /root/.hermes && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* /home/waas_user/.gnupg /tmp/*
 
@@ -141,5 +162,31 @@ ENV WAAS_PROFILE=${WAAS_PROFILE}
 # stored under ~/.hermes.
 ENV WAAS_APP="waas-hermes-kiosk"
 ENV WAAS_HERMES_DASHBOARD=1
+
+# Point hermes at the two bundles built above. Both vars are what
+# upstream's own Docker image sets (their Dockerfile + immutable-install
+# tests assert them), for the same reason we need them: an install tree
+# that is root-owned and read-only at runtime.
+#
+# TUI — prebuilding alone is NOT enough. _make_tui_argv()
+# (hermes_cli/main.py) re-runs `npm run build` on EVERY launch outside
+# Termux (should_build is unconditionally True), writing ui-tui/dist/
+# entry.js. HERMES_TUI_DIR is checked at the top of that function and
+# returns `node --expose-gc <dir>/dist/entry.js` directly, skipping both
+# the npm install and the rebuild. Must NOT be combined with
+# `hermes --dev` (upstream rejects the pair).
+#
+# WEB — without it, `hermes dashboard` falls into
+# `_build_web_ui(PROJECT_ROOT/"web", fatal=True)`. That happens to no-op
+# today only because _web_ui_build_needed() judges our prebuilt dist
+# fresh; setting the var makes it unconditional instead of resting on a
+# staleness heuristic. vite's outDir is ../hermes_cli/web_dist, so this
+# is where `npm run build -w web` already writes.
+#
+# Both silently fall back to running npm against the read-only tree if
+# the artifacts are not actually at these paths — hence the two `test -f`
+# guards in the build above.
+ENV HERMES_TUI_DIR=/usr/local/lib/hermes-agent/ui-tui
+ENV HERMES_WEB_DIST=/usr/local/lib/hermes-agent/hermes_cli/web_dist
 
 USER 1000:1000

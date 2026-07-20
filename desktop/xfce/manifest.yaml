@@ -5,7 +5,7 @@ description: >
   Ships a usable baseline: Firefox, git, openssh-client, curl, vim, less,
   plus mise — which installs toolchains into ~/.local/share/mise on the
   home volume, so they survive pod restarts.
-version: "2.1.0"
+version: "2.1.1"
 from: core-ubuntu-noble-full
 # No "xfce" slug in dashboard-icons — the OS icon is the best fit.
 icon: ubuntu-linux

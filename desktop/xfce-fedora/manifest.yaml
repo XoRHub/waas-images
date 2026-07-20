@@ -7,7 +7,7 @@ description: >
   openssh-clients, curl, vim, less, plus mise — which installs toolchains
   into ~/.local/share/mise on the home volume, so they survive pod
   restarts.
-version: "2.1.0"
+version: "2.1.1"
 from: core-fedora-43-full
 icon: fedora
 

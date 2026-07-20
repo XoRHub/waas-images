@@ -105,11 +105,28 @@ COPY policies.json /etc/firefox/policies/policies.json
 # renovate: datasource=github-releases depName=jdx/mise
 ARG MISE_VERSION=v2026.7.7
 ARG TARGETARCH
+# gpgv is a SEPARATE package from gpg (a standalone verifier binary; the
+# gpg package does not ship it), and the SHASUMS256.asc check below execs
+# it directly. ubuntu-noble carries it in the base image already — apt
+# there hard-depends on gpgv for archive verification — but Debian 13
+# does not: trixie's apt verifies archives with sequoia's sqv and dropped
+# the hard gpgv dependency, so the debian-desktop-13 leg had no gpgv at
+# all and died with "gpgv: command not found" (exit 127). Hence gpgv is
+# named explicitly below — but installed AND purged conditionally: on
+# ubuntu-noble the base's own gpgv must survive this layer (purging it
+# would tear out apt's dependency and the resolver refuses), so only a
+# copy this layer added is ours to remove.
+#
 # DL3003: a WORKDIR would leak /tmp as every later step's cwd for one cd;
-# DL3008: gpg is build scaffolding, purged at the end of this same layer.
-# hadolint ignore=DL3003,DL3008
+# DL3008: gpg (and gpgv where we added it) is build scaffolding, purged
+# at the end of this same layer;
+# SC2086: ${GPGV_PKG} is deliberately unquoted — when empty it must
+# expand to no argument at all, a quoted "" would reach apt-get as a
+# package named "".
+# hadolint ignore=DL3003,DL3008,SC2086
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gpg && \
+    if dpkg -s gpgv >/dev/null 2>&1; then GPGV_PKG=""; else GPGV_PKG="gpgv"; fi && \
+    apt-get install -y --no-install-recommends gpg ${GPGV_PKG} && \
     case "${TARGETARCH}" in \
         amd64) MISE_ARCH=x64 ;; \
         arm64) MISE_ARCH=arm64 ;; \
@@ -138,7 +155,7 @@ RUN apt-get update && \
     tar -xzf "${MISE_TARBALL}" -C /usr/local/bin --strip-components=2 mise/bin/mise && \
     rm -f "${MISE_TARBALL}" SHASUMS256.asc /tmp/mise-release-key.gpg && \
     test "$(mise --version | cut -d' ' -f1)" = "${MISE_VERSION#v}" && \
-    apt-get purge -y --auto-remove gpg && \
+    apt-get purge -y --auto-remove gpg ${GPGV_PKG} && \
     apt-get clean && \
     # The base exports HOME=/home/waas_user, and derived images RUN as
     # root — so root's `mise --version` above just seeded ~/.cache/mise

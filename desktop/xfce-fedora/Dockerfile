@@ -72,12 +72,21 @@ COPY policies.json /etc/firefox/policies/policies.json
 # mise — see desktop/xfce/Dockerfile for the full rationale. The block is
 # near-identical because mise is a signed tarball, not a package: only the
 # gnupg2 install differs from the apt sibling.
+#
+# gnupg2-verify is what actually ships /usr/bin/gpgv here (verified:
+# rpm -qf on Fedora 43) — gnupg2 hard-requires it and fedora:43's base
+# image even preinstalls it, so the `gpgv` call below worked without it
+# being named. Named anyway: the apt sibling broke exactly when a base
+# image (debian:13-slim) stopped implying gpgv, and this line is what
+# keeps that failure mode impossible rather than merely absent today.
+# NOT added to the `dnf remove` below: it is base-image content on
+# Fedora, not scaffolding this layer introduced.
 # renovate: datasource=github-releases depName=jdx/mise
 ARG MISE_VERSION=v2026.7.7
 ARG TARGETARCH
 # DL3003: a WORKDIR would leak /tmp as every later step's cwd for one cd.
 # hadolint ignore=DL3003,DL3041
-RUN dnf install -y --setopt=install_weak_deps=False gnupg2 && \
+RUN dnf install -y --setopt=install_weak_deps=False gnupg2 gnupg2-verify && \
     case "${TARGETARCH}" in \
         amd64) MISE_ARCH=x64 ;; \
         arm64) MISE_ARCH=arm64 ;; \

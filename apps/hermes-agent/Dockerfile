@@ -27,7 +27,7 @@ USER 0
 
 ARG TARGETARCH
 # renovate: datasource=node-version depName=node
-ARG NODE_VERSION=22.23.1
+ARG NODE_VERSION=24.18.0
 # The npm bundled in the node tarball (10.9.8) ships two HIGH CVEs in its
 # OWN vendored deps — picomatch 4.0.3 (CVE-2026-33671) and sigstore 3.1.0
 # (CVE-2026-48815) — which gated the Trivy scan red. Neither is hermes

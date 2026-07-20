@@ -42,7 +42,9 @@ images:
   version: 2.0.1
   icon: debian-linux
   displayName: Debian Desktop 13
-  description: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
+  description: 'XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image. Ships a usable baseline: Firefox, git,
+    openssh-client, curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume, so
+    they survive pod restarts.'
   architectures:
   - amd64
   - arm64
@@ -101,8 +103,10 @@ images:
   version: 2.0.2
   icon: visual-studio-code
   displayName: DevTools (hardened)
-  description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a dev toolchain (git, build-essential,
-    python3, jq, tmux, ...). No autostart: VS Code sits in the XFCE menu.'
+  description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) on top of the desktop baseline (Firefox,
+    git, openssh-client, mise), plus the system build toolchain (build-essential, python3, jq, tmux). mise installs extra
+    toolchains into ~/.local/share/mise on the home volume, so they survive pod restarts. No autostart: VS Code sits in the
+    XFCE menu.'
   architectures:
   - amd64
   - arm64
@@ -138,8 +142,10 @@ images:
   version: 2.0.2
   icon: visual-studio-code
   displayName: DevTools (dev)
-  description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) and a dev toolchain (git, build-essential,
-    python3, jq, tmux, ...). No autostart: VS Code sits in the XFCE menu.'
+  description: 'XFCE work desktop with VS Code (Microsoft APT repo, fingerprint pinned) on top of the desktop baseline (Firefox,
+    git, openssh-client, mise), plus the system build toolchain (build-essential, python3, jq, tmux). mise installs extra
+    toolchains into ~/.local/share/mise on the home volume, so they survive pod restarts. No autostart: VS Code sits in the
+    XFCE menu.'
   architectures:
   - amd64
   - arm64
@@ -172,7 +178,9 @@ images:
   version: 2.0.1
   icon: fedora
   displayName: Fedora Desktop 43
-  description: XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full.
+  description: 'XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full. Ships a usable baseline: Firefox,
+    git, openssh-clients, curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume,
+    so they survive pod restarts.'
   architectures:
   - amd64
   - arm64
@@ -269,7 +277,8 @@ images:
   icon: hermes-agent
   displayName: Hermes-Agent (hardened)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
-    AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume.
+    AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume, and mise installs extra toolchains
+    there too, so they survive pod restarts.
   architectures:
   - amd64
   - arm64
@@ -310,7 +319,8 @@ images:
   icon: hermes-agent
   displayName: Hermes-Agent (dev)
   description: Hermes Agent (Nous Research) with its web dashboard in a Firefox kiosk (chat TUI embedded) — self-improving
-    AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume.
+    AI agent; keys, sessions, memories and skills persist in ~/.hermes on the home volume, and mise installs extra toolchains
+    there too, so they survive pod restarts.
   architectures:
   - amd64
   - arm64
@@ -383,7 +393,9 @@ images:
   version: 2.0.1
   icon: ubuntu-linux
   displayName: Ubuntu Desktop Noble
-  description: XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image.
+  description: 'XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image. Ships a usable baseline: Firefox, git,
+    openssh-client, curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume, so
+    they survive pod restarts.'
   architectures:
   - amd64
   - arm64

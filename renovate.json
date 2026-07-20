@@ -77,6 +77,16 @@
         "OS_BASE_IMAGE: \"(?<depName>[a-z-]+):(?<currentValue>[a-z0-9.-]+)\""
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Annotated ARG pins in the app Dockerfiles (NODE_VERSION, NPM_VERSION, HERMES_VERSION, MISE_VERSION, ...). Without this entry the '# renovate:' comments in apps/*/Dockerfile are inert: the built-in dockerfile manager only reads FROM lines and ARG <name>=<image>:<tag>, so every annotated toolchain pin there looked maintained while never being bumped. currentValue must start with a digit or 'v' ON PURPOSE — that skips apps/firefox's ARG FIREFOX_VERSION=*, where '*' means 'newest in the Mozilla apt repo at build time' and substituting a concrete version would break the build (product versions like 145.0 are not the apt version, which carries a ~buildN suffix).",
+      "managerFilePatterns": [
+        "/^apps/.+/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\nARG \\w+=\"?(?<currentValue>v?\\d[^\"\\s]*)\"?"
+      ]
     }
   ]
 }

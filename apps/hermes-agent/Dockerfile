@@ -37,7 +37,7 @@ ARG NODE_VERSION=22.23.1
 # renovate: datasource=npm depName=npm
 ARG NPM_VERSION=12.0.1
 # renovate: datasource=github-tags depName=NousResearch/hermes-agent
-ARG HERMES_VERSION=v2026.7.7.2
+ARG HERMES_VERSION=v2026.7.20
 
 # git/ripgrep/ffmpeg: upstream's documented runtime deps (agent tools);
 # xz-utils stays — node tarball now, an archive tool for the agent

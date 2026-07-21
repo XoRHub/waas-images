@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.3.2
+      - uses: astral-sh/setup-uv@v9.0.0
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       # hadolint/hadolint has no ghcr.io mirror, so authenticate instead:
@@ -153,7 +153,7 @@ jobs:
       scan_ignore_unfixed: ${{ steps.matrices.outputs.scan_ignore_unfixed }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.3.2
+      - uses: astral-sh/setup-uv@v9.0.0
       - name: Generate matrices
         id: matrices
         run: |
@@ -195,7 +195,7 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.3.2
+      - uses: astral-sh/setup-uv@v9.0.0
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       # buildx talks to the GHA cache service directly (--cache-to/from
@@ -319,7 +319,7 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.3.2
+      - uses: astral-sh/setup-uv@v9.0.0
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       # buildx talks to the GHA cache service directly (--cache-to/from
@@ -438,7 +438,7 @@ jobs:
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.3.2
+      - uses: astral-sh/setup-uv@v9.0.0
       - name: Materialise recipe Dockerfiles
         run: uv run ci/generate_pipeline.py >/dev/null
       # buildx talks to the GHA cache service directly (--cache-to/from
@@ -556,7 +556,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.3.2
+      - uses: astral-sh/setup-uv@v9.0.0
       # Manifest-only (no registry needed) — runs regardless of the
       # registry-dependent steps below. Never committed: the script
       # itself detects $GITHUB_STEP_SUMMARY (set by the runner for

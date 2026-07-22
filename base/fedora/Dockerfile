@@ -17,7 +17,7 @@
 # x11-xserver-utils is exploded (only xrandr is actually used, by
 # waas-resize); fonts are dejavu-sans-fonts + xorg-x11-fonts-misc.
 
-ARG OS_BASE_IMAGE=fedora:43
+ARG OS_BASE_IMAGE=fedora:45
 # hadolint ignore=DL3006
 FROM ${OS_BASE_IMAGE}
 

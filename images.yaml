@@ -23,7 +23,7 @@ os:
       OS_BASE_IMAGE: "debian:13-slim"
   fedora-43:
     buildArgs:
-      OS_BASE_IMAGE: "fedora:43"
+      OS_BASE_IMAGE: "fedora:45"
 
 defaults:
   os: ubuntu-noble

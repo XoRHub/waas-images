@@ -129,7 +129,7 @@ RUN apt-get update && \
 # per arch and renovate cannot recompute either, so a version bump would
 # break the build every single time.
 # renovate: datasource=github-releases depName=jdx/mise
-ARG MISE_VERSION=v2026.7.7
+ARG MISE_VERSION=v2026.7.12
 # DL3003: a WORKDIR would leak /tmp as every later step's cwd for one cd;
 # DL3008: gpg is build scaffolding, purged at the end of this same layer.
 # hadolint ignore=DL3003,DL3008

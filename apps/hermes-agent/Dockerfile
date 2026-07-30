@@ -35,7 +35,7 @@ ARG NODE_VERSION=22.23.1
 # hard gate, so upgrade npm rather than suppress: npm 12 drops picomatch
 # entirely and vendors sigstore 5.0.0 (fix landed in 4.1.1).
 # renovate: datasource=npm depName=npm
-ARG NPM_VERSION=12.0.1
+ARG NPM_VERSION=12.0.2
 # renovate: datasource=github-tags depName=NousResearch/hermes-agent
 ARG HERMES_VERSION=v2026.7.7.2
 

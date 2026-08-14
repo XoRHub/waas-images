@@ -48,7 +48,7 @@ log "trivy scan (gate: ${TRIVY_SEVERITY:-HIGH,CRITICAL}) ${IMAGE}"
 docker run --rm \
     -v trivy-cache:/root/.cache/trivy \
     ${TRIVY_MOUNT_FLAGS} \
-    ghcr.io/aquasecurity/trivy:0.72.0 image \
+    ghcr.io/aquasecurity/trivy:0.74.0 image \
     --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
     --severity "${TRIVY_SEVERITY:-HIGH,CRITICAL}" \
     --ignore-unfixed="${TRIVY_IGNORE_UNFIXED:-true}" \

@@ -163,7 +163,7 @@ attach_sbom() {
     docker run --rm \
         -v "$(pwd):/out" \
         -v trivy-cache:/root/.cache/trivy \
-        ghcr.io/aquasecurity/trivy:0.72.0 image \
+        ghcr.io/aquasecurity/trivy:0.74.0 image \
         --username "${CI_PUBLIC_REGISTRY_USER}" --password "${CI_PUBLIC_REGISTRY_PASSWORD}" \
         --platform linux/amd64 \
         --format cyclonedx \

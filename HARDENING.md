@@ -9,13 +9,18 @@ is enforced, so the list is verifiable, not aspirational.
       (default `1000:1000`, user `waas_user`, home `/home/waas_user`).
       Ubuntu 24.04's default `ubuntu` user is removed.
       → `base/ubuntu/Dockerfile`, `USER` directive; verify:
-      `docker run --rm <img> id` → `uid=1000`.
+      `docker run --rm --entrypoint id <img>` → `uid=1000`.
+      (Every `verify:` below uses `--entrypoint`: the images carry no
+      `CMD`, and `waas-entrypoint` ignores its arguments and refuses to
+      boot without a password, so a trailing command never runs.)
 - [x] **No setuid/setgid binaries**: all `+s` bits stripped after every
       apt layer (base and derived images re-assert after installs), and
       **asserted by the CI smoke test** (`ci/smoke_test.sh` fails on any
       suid file; `-dev` images must show exactly `/usr/bin/sudo`).
-      → verify: `docker run --rm <img> find / -xdev -perm /6000 -type f`
-      → empty.
+      → verify:
+      `docker run --rm --entrypoint find <img> / -xdev -perm /6000 -type f`
+      → empty (a couple of `Permission denied` on stderr for root-only
+      directories is the non-root user at work, not a finding).
 - [x] **No secrets in the image**: password arrives at runtime via env,
       hashed to a 0600 file in tmpfs, then scrubbed from the environment.
       CI runs `trivy --scanners vuln,secret` as a gate.
@@ -23,40 +28,50 @@ is enforced, so the list is verifiable, not aspirational.
 - [x] **Minimal packages**: `--no-install-recommends` everywhere,
       `apt-get clean`, apt lists / caches / logs removed, xterm purged
       from the XFCE layer.
-- [x] **App-dedicated images carry no remote-desktop surface beyond
-      VNC**: every `apps/*` image is built on the VNC-only
-      `core-ubuntu-noble` core (`devtools` on the VNC-only
-      `core-ubuntu-noble-xfce`; never the `-full` core, no `xrdp`, no
-      `sshd`) — a single-app image can only ever activate VNC, not
-      merely by runtime toggle but because the binaries themselves are
-      absent. The kiosk session (`WAAS_APP`) removes the desktop too:
-      no panel, no terminal, no WM keybindings behind the app.
-      → `waas-session` + `/etc/waas/openbox-app.rc.xml` (base rootfs);
-      verify:
-      `docker run --rm <apps-image> sh -c 'command -v xrdp; command -v sshd'`
-      — both report not found.
+- [x] **No remote-desktop or shell surface beyond VNC, on every image
+      from 3.0.0**: no Dockerfile in this repo installs `xrdp` or
+      `sshd`, no build arg can add them, and the entrypoint has no code
+      path that would start them — the platform reaches a Linux
+      workspace over VNC and nothing else (waas#117: `rdp` is for
+      Windows VMs, `ssh` was dropped), so a second session listener
+      would be attack surface with no consumer. Structurally absent,
+      not disabled: there is no runtime toggle to get it wrong
+      (`WAAS_VNC_ENABLED=0`, which used to mean "RDP only", is refused
+      at boot rather than silently ignored). Ports 3389/2222 are not
+      even `EXPOSE`d. The listeners that remain are not sessions:
+      PulseAudio on 4713 (its own item below) and, on `hermes-agent`
+      only, the loopback-bound dashboard. Tags below 3.0.0 — including
+      the `2.x` refs `catalog-waas-images.yaml` still carries until the
+      3.0.0 build is published — were built from the old `-full`
+      parents and DO ship both binaries, xrdp on by default.
+      → `base/ubuntu/Dockerfile`, `base/fedora/Dockerfile`; verify:
+      `docker run --rm --entrypoint sh <img> -c 'command -v xrdp; command -v sshd'`
+      — both report not found on any 3.0.0+ tag (the same command
+      against `ubuntu-desktop-noble:2.1.1` prints both paths, which is
+      how you know it discriminates).
+- [x] **App-dedicated images carry no desktop either**: the kiosk
+      session (`WAAS_APP`) removes the desktop behind the app — no
+      panel, no terminal, no WM keybindings.
+      → `waas-session` + `/etc/waas/openbox-app.rc.xml` (base rootfs).
 - [x] **Pinned supply chain**: base image pinned by Renovate digest pin;
       Mozilla APT repo verified against its published key fingerprint and
       priority-pinned; CI tool images version-pinned.
 
 ## Enforced at runtime (image design + smoke test)
 
-- [x] **Read-only rootfs compatible**: only `/home/waas_user`, `/tmp`, `/run`
-      are written. CI smoke-runs every image with `--read-only
-      --cap-drop ALL --security-opt no-new-privileges` — a regression
-      fails the pipeline.
+- [x] **Read-only rootfs compatible**: only `/home/waas_user` and `/tmp`
+      are written (`/run` left the contract with xrdp, its only
+      writer). CI smoke-runs every image with `--read-only --cap-drop
+      ALL --security-opt no-new-privileges` and a tmpfs on exactly
+      those two paths — a regression fails the pipeline.
       → `ci/smoke_test.sh`.
 - [x] **Zero capabilities required**: all ports > 1024, no PAM, no
       chown at startup (fsGroup handles the PVC). `--cap-drop ALL` in CI.
 - [x] **X display protected** by a MIT-MAGIC-COOKIE (no `Xvnc -ac`).
 - [x] **VNC auth always on** (`-SecurityTypes VncAuth`, `-rfbauth`);
-      empty password refuses to start. xrdp: `crypt_level=high`,
-      `security_layer=negotiate` with TLS cert (provided or ephemeral).
-- [x] **RDP auth on by default** (`WAAS_RDP_AUTH_ENABLED=true` baked as ENV,
-      no build-time opt-out): the RDP client must present the session
-      password (`password=ask` bridge). Credential-less RDP requires an
-      explicit `WAAS_RDP_AUTH_ENABLED=false` at runtime and logs a warning —
-      no image can leave the build with an open RDP.
+      empty password refuses to start. There is no credential-less mode
+      to opt into: the only session listener is Xvnc, and it always
+      asks.
 - [x] **Audio via an unprivileged PulseAudio** (plain user mode: no
       root, no setuid, no rtkit — same privilege profile as everything
       else): a null sink plus the native protocol on TCP 4713, which
@@ -65,25 +80,10 @@ is enforced, so the list is verifiable, not aspirational.
       (`--disallow-module-loading`), so neither an in-session client nor
       a network peer can extend the daemon. TCP auth is anonymous BY
       DESIGN: the guacd-only NetworkPolicy is the boundary for 4713
-      exactly as it is for the cleartext VNC/RDP ports (see § Threat
+      exactly as it is for the cleartext VNC port (see § Threat
       model). `WAAS_AUDIO_ENABLED=0` disables the daemon entirely.
       → `waas-entrypoint`, `etc/waas/pulse/default.pa.tpl`; verify: CI
       smoke test runs `pactl info` against tcp:4713.
-- [x] **SSH, when built in, is publickey-only and off by default**
-      (`INSTALL_SSH=1` bakes an unprivileged `sshd`; `WAAS_SSH_ENABLED`
-      still defaults to `0` even then — the IMAGE generates no
-      credential, so it must never assume an operator meant to expose
-      it; the platform, when a template declares ssh, generates the
-      keypair and flips the toggle itself). Password
-      authentication is impossible by construction: the unprivileged
-      `sshd` cannot read `/etc/shadow`. The entrypoint refuses to start
-      with `WAAS_SSH_ENABLED=1` and no authorized key, and refuses to
-      even try if `sshd` isn't in the image at all (same guard pattern
-      as RDP's `xrdp` check).
-      → `base/ubuntu/Dockerfile`, `base/fedora/Dockerfile`,
-      `rootfs/etc/waas/entrypoint.d/50-sshd.sh`; verify:
-      `docker run --rm <img> command -v sshd` reports not found unless
-      the image was built with `INSTALL_SSH=1`.
 
 ## To apply on the platform side (documented contract)
 
@@ -91,10 +91,10 @@ is enforced, so the list is verifiable, not aspirational.
       `runAsNonRoot`, `runAsUser/fsGroup: 1000`,
       `seccompProfile: RuntimeDefault`, `allowPrivilegeEscalation: false`,
       `capabilities.drop: [ALL]`, `readOnlyRootFilesystem: true` +
-      emptyDir on `/tmp` and `/run`. Meets PodSecurity **restricted**.
+      emptyDir on `/tmp`. Meets PodSecurity **restricted**.
       AppArmor: `runtime/default` is sufficient; no custom profile needed.
 - [ ] `examples/networkpolicy-workspaces.yaml`: only guacd reaches
-      5901/3389/4713; no east-west between workspaces. Mandatory if
+      5901/4713; no east-west between workspaces. Mandatory if
       audio stays enabled: 4713 accepts anonymous clients by design.
 - [ ] Template credentials from Vault/ESO (see README § Secrets).
 
@@ -108,7 +108,7 @@ either.
 Some workspaces are development environments whose users legitimately
 need `sudo apt install` in-session. That can never be a runtime flag —
 sudo is a setuid binary (stripped from standard images), `apt` writes
-outside `/home/waas_user|/tmp|/run`, and `no-new-privileges` kills setuid
+outside `/home/waas_user|/tmp`, and `no-new-privileges` kills setuid
 transitions — so it is a **build-time variant with a distinct tag**
 (`<name>-dev`, e.g. `devtools-dev`), a documented reduced
 profile, not a regression of this checklist.
@@ -137,9 +137,9 @@ exactly this profile.
 Guard rails: the pipeline generator refuses `INSTALL_SUDO=1` on a
 variant whose name lacks the `-dev` suffix or whose `profile:` is not
 `dev`; the image bakes `WAAS_PROFILE=dev` and the entrypoint logs a
-loud boot warning (`WAAS_RDP_AUTH_ENABLED=false` precedent); the catalog
-entry must keep its `allowedGroups` gate (platform-side, documented
-contract — same list as the standard `devtools`).
+loud boot warning; the catalog entry must keep its `allowedGroups` gate
+(platform-side, documented contract — same list as the standard
+`devtools`).
 
 Machine mirror: `ci/generate_catalog.py`'s `RECOMMENDATION_DEV` derives
 the published catalog's `recommended` block (`profile: normal`) from
@@ -156,8 +156,8 @@ declines to grant.
 
 What *is* solved is the underlying need. The desktop layer
 (`desktop/xfce`, `desktop/xfce-fedora`) ships **mise**, so every image
-built on it inherits it: the three OS desktops and, through
-`core-ubuntu-noble-xfce`, `apps/devtools`. `apps/hermes-agent` carries
+built on it inherits it: the three OS desktops and, being built FROM
+`ubuntu-desktop-noble`, `apps/devtools`. `apps/hermes-agent` carries
 its own copy — it is a kiosk on `core-ubuntu-noble`, outside the XFCE
 lineage. mise installs toolchains under `~/.local/share/mise`, on the
 home PVC, so they survive restarts by construction. It writes nothing
@@ -191,42 +191,25 @@ platform-repo concern.
 ## Threat model for desktop traffic
 
 The browser session is TLS-terminated at the ingress; wwt→guacd→workspace
-runs on the pod network. VNC/RDP between guacd and the workspace is
-**cleartext by default**, accepted because: (1) both endpoints live in
-the same cluster namespace, (2) the NetworkPolicy above restricts the
-path to guacd exactly, (3) guacd's VNC client support for X509/VeNCrypt
-is unreliable, so forcing TLS there would break the primary protocol.
-If the pod network itself is in scope (multi-tenant nodes, no CNI
-encryption), enable WireGuard/IPsec at the CNI layer (Cilium/Calico)
-rather than per-protocol TLS — it also covers guacd→wwt. For RDP, TLS
-*is* enabled when guacd negotiates it (`security_layer=negotiate`); mount
-a real cert via `WAAS_TLS_CERT`/`WAAS_TLS_KEY` to replace the ephemeral
-self-signed one.
+runs on the pod network. VNC between guacd and the workspace is
+**cleartext**, accepted because: (1) both endpoints live in the same
+cluster namespace, (2) the NetworkPolicy above restricts the path to
+guacd exactly, (3) guacd's VNC client support for X509/VeNCrypt is
+unreliable, so forcing TLS there would break the only protocol. If the
+pod network itself is in scope (multi-tenant nodes, no CNI encryption),
+enable WireGuard/IPsec at the CNI layer (Cilium/Calico) rather than
+per-protocol TLS — it also covers guacd→wwt. (The xrdp bridge used to
+offer a negotiated-TLS alternative on 3389; it is gone with RDP, and the
+CNI answer above was already the recommended one.)
 
 ## Known, accepted gaps (documented, not hidden)
 
 - `/etc/machine-id` is identical across containers of one image (baked
   for read-only dbus); not used as identity by anything shipped.
-- RDP clipboard: **works, text-only, without chansrv** — xrdp's libvnc
-  backend embeds its own cliprdr handler (`vnc/vnc_clip.c`) bridging
-  the RDP clipboard to the RFB cut-text that Xvnc/vncconfig already
-  serve. Verified live against guacd 1.5.5, both directions, on this
-  image (2026-07); the wwt policy filter applies unchanged. Non-text
-  formats (files, images) are not bridged.
-- RDP audio: still not shipped — and the blocker is NOT sesman/PAM.
-  Investigated on xrdp 0.9.24 / Ubuntu 24.04: chansrv runs fine
-  without sesman (`chansrvport=DISPLAY(n)` in the xrdp.ini session
-  section), as UID 1000, without PAM, and the xrdp package ships zero
-  setuid/setgid binaries — none of that would regress this checklist.
-  What is missing is the sound-server side: chansrv's audio needs an
-  xrdp sink module inside the audio server, and Ubuntu 24.04 only
-  packages `pipewire-module-xrdp` (PipeWire) — this image runs
-  PulseAudio (see "Enforced at runtime"). Shipping RDP audio therefore
-  means either migrating the image's audio stack to PipeWire
-  (pipewire-pulse could keep serving guacd's VNC stream) or compiling
-  `pulseaudio-module-xrdp` from source (supply-chain + maintenance
-  cost). Deliberately deferred; revisit if the audio stack moves to
-  PipeWire. VNC remains the recommended Linux protocol.
+- Clipboard is text-only over VNC (RFB cut-text via vncconfig); files
+  and images are not bridged. Browser-window resizes are not pushed to
+  the server by guacd's VNC client (`waas-resize` inside the session is
+  the workaround, see README).
 - Firefox's *internal* process sandbox degrades in the container
   (`CanCreateUserNamespace: EPERM`): unprivileged user namespaces are
   blocked by the seccomp/caps profile. Deliberate: the pod (non-root,

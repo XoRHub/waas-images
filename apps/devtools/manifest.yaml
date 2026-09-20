@@ -10,8 +10,11 @@ description: >
   tmux). mise installs extra toolchains into ~/.local/share/mise on the
   home volume, so they survive pod restarts. No autostart: VS Code sits
   in the XFCE menu.
-version: "2.1.0"
-from: core-ubuntu-noble-xfce
+version: "3.0.0"
+# Built FROM the published OS desktop, not a private "core-" twin of it:
+# since every image is VNC-only there is nothing a separate devtools
+# parent could strip that ubuntu-desktop-noble still carries.
+from: ubuntu-desktop-noble
 icon: visual-studio-code
 
 # packages.microsoft.com/repos/code ships arm64 code debs (verified

@@ -27,8 +27,6 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
@@ -42,9 +40,9 @@ images:
   version: 2.1.1
   icon: debian-linux
   displayName: Debian Desktop 13
-  description: 'XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image. Ships a usable baseline: Firefox, git,
-    openssh-client, curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume, so
-    they survive pod restarts.'
+  description: 'XFCE desktop over VNC, derived from the apt core image. Ships a usable baseline: Firefox, git, openssh-client,
+    curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume, so they survive pod
+    restarts.'
   architectures:
   - amd64
   - arm64
@@ -65,32 +63,7 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
-    - name: WAAS_RDP_ENABLED
-      description: Enable xrdp — boolean '0'/'1'. Requires the image to have been built with INSTALL_RDP=1 (OS-only images
-        only); no relevant runtime default to advertise here.
-      protocols:
-      - rdp
-    - name: WAAS_RDP_AUTH_ENABLED
-      description: Require the RDP client to present the session password. Baked true; an explicit runtime false opts out
-        and logs a warning — never a build-time toggle.
-      protocols:
-      - rdp
-      default: 'true'
-    - name: WAAS_SSH_ENABLED
-      description: Enable sshd (publickey only) — boolean '0'/'1'.
-      protocols:
-      - ssh
-      default: '0'
-      requires:
-      - WAAS_SSH_AUTHORIZED_KEYS_FILE
-    - name: WAAS_SSH_AUTHORIZED_KEYS_FILE
-      description: 'Path to the authorized public key — mount from a Secret (valueFrom.secretKeyRef), never a literal value.
-        Required as soon as WAAS_SSH_ENABLED=1: the entrypoint refuses to start otherwise (fail-closed by design).'
-      protocols:
-      - ssh
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
         — boolean '0'/'1'.
@@ -127,8 +100,6 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
@@ -163,8 +134,6 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
@@ -178,9 +147,9 @@ images:
   version: 2.1.1
   icon: fedora
   displayName: Fedora Desktop 43
-  description: 'XFCE desktop on Fedora, VNC + RDP + SSH, derived from core-fedora-43-full. Ships a usable baseline: Firefox,
-    git, openssh-clients, curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume,
-    so they survive pod restarts.'
+  description: 'XFCE desktop on Fedora over VNC, derived from core-fedora-43. Ships a usable baseline: Firefox, git, openssh-clients,
+    curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume, so they survive pod
+    restarts.'
   architectures:
   - amd64
   - arm64
@@ -201,32 +170,7 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
-    - name: WAAS_RDP_ENABLED
-      description: Enable xrdp — boolean '0'/'1'. Requires the image to have been built with INSTALL_RDP=1 (OS-only images
-        only); no relevant runtime default to advertise here.
-      protocols:
-      - rdp
-    - name: WAAS_RDP_AUTH_ENABLED
-      description: Require the RDP client to present the session password. Baked true; an explicit runtime false opts out
-        and logs a warning — never a build-time toggle.
-      protocols:
-      - rdp
-      default: 'true'
-    - name: WAAS_SSH_ENABLED
-      description: Enable sshd (publickey only) — boolean '0'/'1'.
-      protocols:
-      - ssh
-      default: '0'
-      requires:
-      - WAAS_SSH_AUTHORIZED_KEYS_FILE
-    - name: WAAS_SSH_AUTHORIZED_KEYS_FILE
-      description: 'Path to the authorized public key — mount from a Secret (valueFrom.secretKeyRef), never a literal value.
-        Required as soon as WAAS_SSH_ENABLED=1: the entrypoint refuses to start otherwise (fail-closed by design).'
-      protocols:
-      - ssh
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
         — boolean '0'/'1'.
@@ -261,8 +205,6 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
@@ -299,8 +241,6 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
@@ -338,8 +278,6 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
@@ -378,8 +316,6 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
@@ -393,9 +329,9 @@ images:
   version: 2.1.1
   icon: ubuntu-linux
   displayName: Ubuntu Desktop Noble
-  description: 'XFCE desktop, VNC + RDP + SSH, derived from the apt core-full image. Ships a usable baseline: Firefox, git,
-    openssh-client, curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume, so
-    they survive pod restarts.'
+  description: 'XFCE desktop over VNC, derived from the apt core image. Ships a usable baseline: Firefox, git, openssh-client,
+    curl, vim, less, plus mise — which installs toolchains into ~/.local/share/mise on the home volume, so they survive pod
+    restarts.'
   architectures:
   - amd64
   - arm64
@@ -416,32 +352,7 @@ images:
     volumes:
     - name: tmp
       mountPath: /tmp
-    - name: run
-      mountPath: /run
     env:
-    - name: WAAS_RDP_ENABLED
-      description: Enable xrdp — boolean '0'/'1'. Requires the image to have been built with INSTALL_RDP=1 (OS-only images
-        only); no relevant runtime default to advertise here.
-      protocols:
-      - rdp
-    - name: WAAS_RDP_AUTH_ENABLED
-      description: Require the RDP client to present the session password. Baked true; an explicit runtime false opts out
-        and logs a warning — never a build-time toggle.
-      protocols:
-      - rdp
-      default: 'true'
-    - name: WAAS_SSH_ENABLED
-      description: Enable sshd (publickey only) — boolean '0'/'1'.
-      protocols:
-      - ssh
-      default: '0'
-      requires:
-      - WAAS_SSH_AUTHORIZED_KEYS_FILE
-    - name: WAAS_SSH_AUTHORIZED_KEYS_FILE
-      description: 'Path to the authorized public key — mount from a Secret (valueFrom.secretKeyRef), never a literal value.
-        Required as soon as WAAS_SSH_ENABLED=1: the entrypoint refuses to start otherwise (fail-closed by design).'
-      protocols:
-      - ssh
     - name: WAAS_AUDIO_ENABLED
       description: Enable the unprivileged PulseAudio daemon (native protocol on TCP 4713, consumed by guacd's VNC client)
         — boolean '0'/'1'.

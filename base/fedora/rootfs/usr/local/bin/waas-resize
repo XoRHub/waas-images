@@ -2,9 +2,8 @@
 # waas-resize WIDTHxHEIGHT — resize the running desktop server-side.
 #
 # Honest limitation: Guacamole's VNC client does not push browser-window
-# resizes to the server (its RDP client does, but our RDP path is an xrdp
-# libvnc bridge that cannot resize the underlying Xvnc either). TigerVNC
-# does support RandR SetDesktopSize, so resolution CAN be changed live —
+# resizes to the server. TigerVNC does support RandR SetDesktopSize, so
+# resolution CAN be changed live —
 # from inside the session (this script) or by anything that can exec into
 # the pod. A future wwt enhancement can call this on browser resize.
 set -euo pipefail

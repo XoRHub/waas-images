@@ -21,15 +21,12 @@ versioned usage contract (WAAS_* env vars, ports, protocols) lives in
 README.md instead, which is what org.opencontainers.image.documentation
 points at (see ci/generate_pipeline.py).
 
-Protocol coverage is driven by each variant's existing
-smoke.rdp/smoke.ssh flags (the same signal CI already trusts to know
-what to smoke-test) rather than a second, separately-maintained
-capability field. VNC is always documented: every image in this repo
-runs TigerVNC's Xvnc as the display server unconditionally (see
-base/ubuntu/Dockerfile), regardless of what a given variant's smoke.vnc
-happens to assert for its own CI check (e.g. the base -rdp variants
-smoke-test RDP-only mode with smoke.vnc: false, even though Xvnc is
-still there).
+The protocol section is the same for every image and derived from
+nothing: VNC is the only remote-access protocol any image in this repo
+serves — TigerVNC's Xvnc is the display server, and no image ships
+another listener (see base/ubuntu/Dockerfile). It is documented
+unconditionally rather than read from smoke.vnc, which only says what
+CI probes.
 
 Reuses generate_pipeline.py's discovery (load_manifests +
 flatten_variants) so the summary can never drift from the build matrix.
@@ -77,24 +74,8 @@ def render(v: dict, *, heading: str = "#", links: bool = True) -> str:
         "(session password; refuses to start without it). Optional: "
         "`WAAS_VNC_RESOLUTION` (default `1920x1080`), "
         "`WAAS_VNC_COL_DEPTH` (default `24`).",
+        "",
     ]
-    smoke = v["smoke"]
-    if smoke.get("rdp"):
-        lines.append(
-            "- **RDP** — port `3389`. Set `WAAS_RDP_ENABLED=1` to "
-            "enable. `WAAS_RDP_AUTH_ENABLED` (default `true`) requires the "
-            "session password on connect; the runtime-only opt-out "
-            "logs a loud warning (see README)."
-        )
-    if smoke.get("ssh"):
-        lines.append(
-            "- **SSH** — port `2222`. Set `WAAS_SSH_ENABLED=1` (check "
-            "this image's own default — some default it off, some "
-            "default it on) and provide `WAAS_SSH_AUTHORIZED_KEYS` (or "
-            "`WAAS_SSH_AUTHORIZED_KEYS_FILE`) from a Secret — "
-            "publickey authentication only, no password fallback."
-        )
-    lines.append("")
     return "\n".join(lines)
 
 

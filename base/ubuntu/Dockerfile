@@ -1,28 +1,24 @@
 # syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
 #
-# waas ubuntu base — headless graphical session, VNC always, RDP opt-in.
+# waas ubuntu base — headless graphical session over VNC.
 #
 # Display server: TigerVNC's Xvnc. It IS the X server (no Xvfb + x11vnc
 # double-buffering), supports RandR resize server-side, and speaks plain
 # RFB 3.8 that guacd's libvncclient understands. KasmVNC was rejected
 # because its transport is websocket-first and recent releases dropped the
 # standard RFB compatibility guacd needs. Wayland headless was rejected
-# because there is no mature RDP export path and wayvnc lacks the
-# multi-client/auth features we get from TigerVNC for free.
+# because wayvnc lacks the multi-client/auth features we get from TigerVNC
+# for free.
 #
-# RDP: xrdp running WITHOUT sesman/PAM. xrdp's libvnc backend bridges the
-# RDP client straight onto the local Xvnc session (password=ask forwards
-# the RDP password as the VNC password). This keeps xrdp fully non-root
-# (no PAM, no setuid) and means VNC and RDP always show the SAME session.
-# Trade-off (documented in README): no chansrv on the RDP path, so RDP
-# clipboard/audio are unavailable — VNC is the recommended protocol for
-# Linux workspaces; RDP is a compatibility option.
+# VNC is the ONLY remote-access protocol: the platform reaches a Linux
+# workspace over VNC and nothing else (waas#117 — rdp is for Windows VMs,
+# ssh was dropped), so no image built here installs xrdp or sshd, and
+# there is no build arg to add them back.
 #
 # Audio: PulseAudio in plain user mode (no root, no setuid, no rtkit).
 # Apps play into a null sink (no sound hardware in a pod) and guacd
 # streams that sink's monitor by connecting to PulseAudio's native
 # protocol on TCP 4713 (guacd VNC params enable-audio/audio-servername).
-# The RDP path stays audio-less: xrdp audio needs chansrv (see below).
 #
 # Supervisor: tini (PID 1, zombie reaping) + supervisord. supervisord runs
 # entirely unprivileged, restarts crashed services, and reads config
@@ -43,15 +39,6 @@ FROM ${OS_BASE_IMAGE}
 ARG WAAS_USER=waas_user
 ARG WAAS_UID=1000
 ARG WAAS_GID=1000
-# Bake xrdp into the image (1) or ship VNC-only (0). Runtime toggles
-# (WAAS_VNC_ENABLED / WAAS_RDP_ENABLED) can only enable what is installed.
-ARG INSTALL_RDP=0
-# Bake an unprivileged, publickey-only sshd into the image (1) or ship
-# without one at all (0, default). Decoupled from WAAS_SSH_ENABLED below:
-# unlike RDP, there is no auto-generated fallback credential for SSH, so
-# even a variant built with INSTALL_SSH=1 must default to SSH disabled
-# at runtime (see rootfs/etc/waas/entrypoint.d/50-sshd.sh).
-ARG INSTALL_SSH=0
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -74,35 +61,7 @@ RUN apt-get update && \
         pulseaudio-utils \
         fonts-dejavu-core \
         xfonts-base \
-        ca-certificates \
-        openssl \
-    && if [ "${INSTALL_RDP}" = "1" ]; then \
-        apt-get install -y --no-install-recommends xrdp && \
-        # xrdp config + keys are rendered at runtime into the (writable)
-        # runtime dir; symlink the hardcoded paths there so the rootfs can
-        # stay read-only.
-        rm -f /etc/xrdp/xrdp.ini /etc/xrdp/rsakeys.ini /etc/xrdp/cert.pem /etc/xrdp/key.pem && \
-        ln -s /tmp/waas/xrdp/xrdp.ini    /etc/xrdp/xrdp.ini && \
-        ln -s /tmp/waas/xrdp/rsakeys.ini /etc/xrdp/rsakeys.ini && \
-        ln -s /tmp/waas/xrdp/cert.pem    /etc/xrdp/cert.pem && \
-        ln -s /tmp/waas/xrdp/key.pem     /etc/xrdp/key.pem && \
-        # xrdp pulls in ssl-cert, whose postinst bakes an unused snakeoil
-        # keypair into the image; it trips trivy's secret scanner (HIGH:
-        # AsymmetricPrivateKey) and nothing reads it since we symlink our
-        # own cert/key above.
-        rm -f /etc/ssl/private/ssl-cert-snakeoil.key /etc/ssl/certs/ssl-cert-snakeoil.pem; \
-    fi && \
-    if [ "${INSTALL_SSH}" = "1" ]; then \
-        apt-get install -y --no-install-recommends openssh-server && \
-        # openssh-server's postinst bakes host keys; drop them so the
-        # image carries none — 50-sshd.sh (re)generates them at boot (or
-        # takes a mounted WAAS_SSH_HOST_KEY_FILE), and baked keys trip
-        # trivy's secret scanner (HIGH: AsymmetricPrivateKey) for no
-        # benefit (same rationale as apps/dev-ssh/Dockerfile).
-        rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub && \
-        # sshd refuses to start without its privilege-separation directory.
-        mkdir -p /run/sshd; \
-    fi && \
+        ca-certificates && \
     # dbus-launch (session bus) wants a machine id; bake one so it works
     # on a read-only rootfs. Identical across containers — acceptable, it
     # is not used as an identity by anything we run.
@@ -129,31 +88,14 @@ RUN chmod 0755 /usr/local/bin/waas-entrypoint /usr/local/bin/waas-session /usr/l
 
 # ---- Runtime contract (consumed by the Workspace operator) ----
 # Port 5901: RFB/VNC (guacd protocol "vnc"). TCP-open == session ready.
-# Port 3389: RDP via xrdp, only when INSTALL_RDP=1 and WAAS_RDP_ENABLED=1.
-# Port 2222: SSH, only when INSTALL_SSH=1 and WAAS_SSH_ENABLED=1 — off by
-#            default even when installed (see rootfs/etc/waas/
-#            entrypoint.d/50-sshd.sh).
 # Port 4713: PulseAudio native protocol for guacd's VNC audio stream,
 #            unless WAAS_AUDIO_ENABLED=0.
-EXPOSE 5901 3389 2222 4713
+EXPOSE 5901 4713
 
 ENV WAAS_USER=${WAAS_USER} \
     HOME=/home/waas_user \
     DISPLAY=:1 \
     WAAS_RUNTIME_DIR=/tmp/waas \
-    WAAS_VNC_ENABLED=1 \
-    WAAS_RDP_ENABLED=${INSTALL_RDP} \
-    # Secure by default: RDP clients must authenticate with the session
-    # password. Only an explicit WAAS_RDP_AUTH_ENABLED=false at runtime —
-    # never a build — turns it off (see waas-entrypoint / README).
-    WAAS_RDP_AUTH_ENABLED=true \
-    # Always off regardless of INSTALL_SSH — the image generates no
-    # credential, so it never assumes an operator meant to expose it.
-    # The waas operator flips this on (with generated keys) when a
-    # template declares the ssh protocol; standalone runs opt in with
-    # WAAS_SSH_ENABLED=1 + WAAS_SSH_AUTHORIZED_KEYS(_FILE).
-    WAAS_SSH_ENABLED=0 \
-    WAAS_SSH_PORT=2222 \
     WAAS_AUDIO_ENABLED=1 \
     # WAAS_VNC_RESOLUTION / WAAS_VNC_COL_DEPTH deliberately have NO baked
     # ENV default: their defaults live in the entrypoint, because an

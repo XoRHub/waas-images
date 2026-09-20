@@ -2,23 +2,16 @@ name: fedora-desktop
 layer: desktop
 os: fedora-43
 description: >
-  XFCE desktop on Fedora, VNC + RDP + SSH, derived from
-  core-fedora-43-full. Ships a usable baseline: Firefox, git,
-  openssh-clients, curl, vim, less, plus mise — which installs toolchains
-  into ~/.local/share/mise on the home volume, so they survive pod
-  restarts.
-version: "2.1.1"
-from: core-fedora-43-full
+  XFCE desktop on Fedora over VNC, derived from core-fedora-43. Ships a
+  usable baseline: Firefox, git, openssh-clients, curl, vim, less, plus
+  mise — which installs toolchains into ~/.local/share/mise on the home
+  volume, so they survive pod restarts.
+version: "3.0.0"
+from: core-fedora-43
 icon: fedora
 
 variants:
   - name: fedora-desktop-43
     smoke:
       vnc: true
-      rdp: true
-      ssh: true
       audio: true
-      env:
-        WAAS_RDP_ENABLED: "1"
-        WAAS_SSH_ENABLED: "1"
-        WAAS_SSH_AUTHORIZED_KEYS: "smoke-placeholder-not-a-real-key"

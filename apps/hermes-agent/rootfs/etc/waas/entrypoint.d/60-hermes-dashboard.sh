@@ -1,5 +1,6 @@
+# shellcheck shell=bash
 # Supervise the Hermes web dashboard (sourced by waas-entrypoint, which
-# provides RUNDIR/log and strict mode — the 50-sshd.sh precedent).
+# provides RUNDIR/log and strict mode — its entrypoint.d layer hook).
 # Loopback only (upstream default bind is 127.0.0.1): reachable solely
 # from inside the session, i.e. through the password-gated VNC display.
 # The web UI is prebuilt at image build time — the code tree under

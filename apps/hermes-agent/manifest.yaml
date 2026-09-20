@@ -11,7 +11,7 @@ description: >
   kiosk (chat TUI embedded) — self-improving AI agent; keys, sessions,
   memories and skills persist in ~/.hermes on the home volume, and mise
   installs extra toolchains there too, so they survive pod restarts.
-version: "2.1.0"
+version: "3.0.0"
 from: core-ubuntu-noble
 icon: hermes-agent
 

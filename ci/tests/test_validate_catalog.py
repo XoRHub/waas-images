@@ -28,8 +28,8 @@ class ValidateCatalog(unittest.TestCase):
         data["images"][0].update(
             os="linux", app="ubuntu-xfce", version="1.1.0",
             icon="ubuntu-linux", displayName="XFCE Desktop",
-            description="XFCE desktop, VNC + RDP + SSH, derived from "
-                        "the apt core-full image.")
+            description="XFCE desktop over VNC, derived from the apt "
+                        "core image.")
         self.assertEqual(vc.validate(data, SCHEMA), [])
 
     def test_full_recommended_entry_valid(self):
@@ -50,18 +50,21 @@ class ValidateCatalog(unittest.TestCase):
                     {"name": "tmp", "mountPath": "/tmp"},
                     {"name": "run", "mountPath": "/run", "readOnly": True},
                 ],
+                # Hint shape only (every optional key exercised once):
+                # the waas example this mirrors still uses the pre-3.0.0
+                # SSH pair, which no image here can advertise any more.
                 "env": [
                     {
-                        "name": "WAAS_SSH_ENABLED",
-                        "description": "Enable sshd (publickey only) — boolean '0'/'1'",
-                        "protocols": ["ssh"],
-                        "default": "0",
-                        "requires": ["WAAS_SSH_AUTHORIZED_KEYS_FILE"],
+                        "name": "WAAS_AUDIO_ENABLED",
+                        "description": "Stream the session's audio to guacd — boolean '0'/'1'",
+                        "protocols": ["vnc"],
+                        "default": "1",
+                        "requires": ["WAAS_VNC_RESOLUTION"],
                     },
                     {
-                        "name": "WAAS_SSH_AUTHORIZED_KEYS_FILE",
-                        "description": "Path to the authorized public key.",
-                        "protocols": ["ssh"],
+                        "name": "WAAS_VNC_RESOLUTION",
+                        "description": "Initial Xvnc geometry, WIDTHxHEIGHT.",
+                        "protocols": ["vnc"],
                     },
                 ],
             },

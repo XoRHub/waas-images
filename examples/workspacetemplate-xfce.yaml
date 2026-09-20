@@ -1,26 +1,30 @@
 # WorkspaceTemplate consuming a waas-images build — the full integration
 # contract in one example.
 #
-# Credentials: none needed. When a template exposes vnc/rdp without an
+# Credentials: none needed. When a template exposes vnc without an
 # explicit password source, the platform generates a random per-workspace
 # password, injects it into the pod (WAAS_DESKTOP_PASSWORD via secretKeyRef) and
 # resolves it server-side at connect time — zero template configuration.
-# For a persistent/known secret instead, set
-# `protocols[].credentialsSecretRef` + env `valueFrom.secretKeyRef` (see
-# workspacetemplate-ssh.yaml for the full pattern).
+# For a persistent/known secret instead (ESO/Vault-provided), set
+# `protocols[].credentialsSecretRef` on the vnc protocol and source
+# WAAS_DESKTOP_PASSWORD from the same Secret with `valueFrom.secretKeyRef`;
+# no credential ever appears in the CR either way.
 apiVersion: waas.xorhub.io/v1alpha1
 kind: WorkspaceTemplate
 metadata:
   name: ubuntu-desktop-noble
 spec:
   displayName: "Ubuntu 24.04 (noble) — Desktop"
-  description: "Full XFCE desktop over VNC (recommended protocol for Linux)."
+  description: "Full XFCE desktop over VNC."
   os: linux
   # Pin the digest (or at least the immutable semver tag) — never a
-  # mutable tag; ArgoCD-friendly.
-  image: registry.example.com/waas/waas-images/ubuntu-desktop-noble:1.0.0
-  # 5901 = VNC (default; guacd protocol "vnc"). Set 3389 + WAAS_RDP_ENABLED
-  # to probe/connect over RDP instead.
+  # mutable tag; ArgoCD-friendly. Placeholder registry on purpose so a
+  # copy-paste cannot half-work: take the real ref (docker.io/xorhub/...)
+  # from catalog-waas-images.yaml, or let the platform's catalog sync
+  # fill it in.
+  image: registry.example.com/waas-images/ubuntu-desktop-noble:3.0.0
+  # 5901 = VNC (guacd protocol "vnc") — the only protocol a Linux image
+  # from this repo serves.
   port: 5901
   homeSize: 10Gi
   resources:
@@ -29,20 +33,3 @@ spec:
   env:
     - name: WAAS_VNC_RESOLUTION
       value: "1920x1080"
-  # Optional: opt this OS-only image into SSH (built with INSTALL_SSH=1;
-  # off by default even then — README § "Contract with the Workspace
-  # CR"). There is no auto-generated SSH credential, so an authorized
-  # key must come from an externally-provisioned Secret, same pattern as
-  # workspacetemplate-ssh.yaml:
-  #   env:
-  #     - name: WAAS_SSH_ENABLED
-  #       value: "1"
-  #     - name: WAAS_SSH_AUTHORIZED_KEYS
-  #       valueFrom:
-  #         secretKeyRef: { name: xfce-ssh-credentials, key: authorized-keys }
-  #   protocols:
-  #     - name: ssh
-  #       port: 2222
-  #       credentialsSecretRef: xfce-ssh-credentials
-  #     - name: vnc
-  #       port: 5901

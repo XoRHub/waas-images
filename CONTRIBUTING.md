@@ -2,9 +2,9 @@
 
 Thanks for looking at `waas-images`. This repo builds the OCI images
 that back WaaS Linux workspaces — read `README.md` for the full design
-(TigerVNC + optional xrdp bridge, unprivileged, read-only-rootfs
-friendly) before making changes; this file covers the day-to-day
-mechanics of contributing.
+(TigerVNC as the display server and the only remote-access protocol,
+unprivileged, read-only-rootfs friendly) before making changes; this
+file covers the day-to-day mechanics of contributing.
 
 ## Prerequisites
 
@@ -78,7 +78,8 @@ packages" (custom repos, non-apt installs, extra services — see
    `from`, `variants:` with a `smoke:` block).
 3. Session: set `ENV WAAS_APP="<command>"` for a single-app kiosk
    image on the bare base (openbox undecorates + maximises the app, no
-   desktop — how apps/* ship); on the XFCE parent, ship
+   desktop — how apps/* ship); on the XFCE parent
+   (`from: ubuntu-desktop-noble`, the devtools pattern), ship
    `/etc/xdg/autostart/waas-app.desktop` for a full desktop instead.
 4. Push — `ci/generate_pipeline.py` discovers the new directory
    automatically; nothing else in `images.yaml` or CI config needs
@@ -116,9 +117,10 @@ rootfs, `--cap-drop ALL`, no-new-privileges, suid sweep, trivy
 vuln/secret scan). In particular:
 
 - Images run as `waas_user` (UID/GID 1000) with no path to root.
-- RDP client authentication (`WAAS_RDP_AUTH_ENABLED`) is on by default and
-  has no build-time opt-out — only a runtime env can disable it, and
-  that logs a warning. Don't add a build arg that bypasses this.
+- VNC is the only remote-access protocol, on every image: no `xrdp`, no
+  `sshd`, and no build arg to add them (the platform reaches a Linux
+  workspace over VNC and nothing else — waas#117). Don't add a second
+  listener.
 - No secrets baked into layers; passwords arrive via runtime env only.
 - `-dev` profile images (baked sudo, relaxed pod securityContext) are a
   deliberate, narrowly-scoped exception — see `HARDENING.md` § "Reduced

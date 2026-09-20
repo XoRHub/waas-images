@@ -11,8 +11,8 @@ load-module module-null-sink sink_name=waas sink_properties=device.description=w
 load-module module-native-protocol-unix socket=@RUNDIR@/pulse/native
 
 # guacd (another pod) pulls the audio stream over TCP. Anonymous auth on
-# purpose: the NetworkPolicy that restricts 5901/3389 to guacd is the
-# boundary for 4713 too — same threat model as the cleartext VNC/RDP
+# purpose: the NetworkPolicy that restricts 5901 to guacd is the
+# boundary for 4713 too — same threat model as the cleartext VNC
 # traffic (HARDENING.md § Threat model).
 load-module module-native-protocol-tcp port=4713 auth-anonymous=1
 

@@ -43,6 +43,11 @@ DOCUMENTATION_URL = "https://github.com/XoRHub/waas-images/blob/main/README.md"
 # GitLab runner tag per build platform. An arch without a native runner
 # fleet must not appear in a manifest.
 RUNNER_TAGS = {"linux/amd64": "amd", "linux/arm64": "arm"}
+# The closed set of smoke: keys — one per SMOKE_* probe build_vars()
+# emits, plus the free-form env map. A key outside it names a probe
+# nothing runs (the rdp:/ssh: keys of the xrdp/sshd era, a typo), so it
+# is refused rather than silently skipped.
+SMOKE_KEYS = {"vnc", "audio", "env"}
 
 
 def load_manifests() -> list[dict]:
@@ -98,6 +103,11 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
             if profile == "dev":
                 # Baked marker consumed by waas-entrypoint's boot warning.
                 build_args.setdefault("WAAS_PROFILE", "dev")
+            smoke = v.get("smoke", {})
+            unknown = set(smoke) - SMOKE_KEYS
+            if unknown:
+                sys.exit(f"{name}: unknown smoke key(s) {sorted(unknown)} "
+                         f"— allowed: {sorted(SMOKE_KEYS)}")
             variants[name] = {
                 "name": name,
                 "context": m["context"],
@@ -119,7 +129,7 @@ def flatten_variants(manifests: list[dict], cfg: dict) -> dict[str, dict]:
                 "from": v.get("from", m.get("from")),
                 "archs": v.get("archs", m.get("archs", defaults.get("archs", []))),
                 "build_args": build_args,
-                "smoke": v.get("smoke", {}),
+                "smoke": smoke,
                 # Catalog-only key like icon/displayName (root + per-variant
                 # override): image-specific EnvHint(s) generate_catalog.py
                 # merges into recommended.env on top of the smoke:-derived
@@ -179,8 +189,6 @@ def build_vars(v: dict, variants: dict[str, dict]) -> dict:
         "IMG_DOCUMENTATION": DOCUMENTATION_URL,
         "SMOKE_PROFILE": v["profile"],
         "SMOKE_VNC": "1" if v["smoke"].get("vnc") else "0",
-        "SMOKE_RDP": "1" if v["smoke"].get("rdp") else "0",
-        "SMOKE_SSH": "1" if v["smoke"].get("ssh") else "0",
         "SMOKE_AUDIO": "1" if v["smoke"].get("audio") else "0",
         "SMOKE_ENV": " ".join(
             f"{k}={val}" for k, val in sorted(v["smoke"].get("env", {}).items())

@@ -4,15 +4,14 @@ OCI images for WaaS Linux workspaces — Kasm-style, 100 % OSS, built for
 the platform's Workspace CR (operator → pod → guacd → wwt → browser).
 
 ```
-base/ubuntu         core-ubuntu-noble(-full), core-debian-13(-full) — ┐
-                    TigerVNC Xvnc + openbox, optional xrdp + sshd,    │
+base/ubuntu         core-ubuntu-noble, core-debian-13 — TigerVNC Xvnc ┐
+                    + openbox, VNC only (no xrdp, no sshd),           │
                     OS-parameterized FROM: ubuntu-* AND debian-*      │
-base/fedora         core-fedora-43(-full), dnf sibling                │
+base/fedora         core-fedora-43, dnf sibling                       │
                     (own Dockerfile + rootfs copy)                    │
 desktop/xfce        ubuntu-desktop-noble, debian-desktop-13 — XFCE    │
-                    + baseline (firefox/git/ssh/mise) on the *-full    │
-                    core (VNC+RDP+SSH); also core-ubuntu-noble-xfce,  ├─ layers
-                    VNC-only, the devtools parent                     │
+                    + baseline (firefox/git/ssh client/mise) on the   ├─ layers
+                    core; ubuntu-desktop-noble is the devtools parent │
 desktop/xfce-fedora fedora-desktop-43 — same baseline, dnf sibling    │
 apps/firefox        policy-managed Firefox, single-app kiosk          │
 apps/devtools       VS Code + build toolchain (+ devtools-dev)        │
@@ -26,31 +25,29 @@ examples/           WorkspaceTemplate + NetworkPolicy
 HARDENING.md        verifiable hardening checklist + threat model
 ```
 
-`core-*` images (base layer, plus the VNC-only `core-ubuntu-noble-xfce`
-desktop parent) are internal build parents only — they exist purely to
-be built FROM by another manifest and are never published to
-`catalog-waas-images.yaml` (`ci/generate_catalog.py` skips any variant
-name starting with `core-`, same for the per-image README generator).
+`core-*` images (the base layer) are internal build parents only — they
+exist purely to be built FROM by another manifest and are never
+published to `catalog-waas-images.yaml` (`ci/generate_catalog.py` skips
+any variant name starting with `core-`, same for the per-image README
+generator).
 
 ## Design in one paragraph
 
 TigerVNC's **Xvnc is the display server** (no Xvfb double stack): it
 serves RFB 3.8 natively, which is exactly what guacd's VNC client
-speaks, and supports RandR resize. **RDP is a bridge**: xrdp without
-sesman/PAM, its `libvnc` backend pointed at the local Xvnc
-(`password=ask` forwards the RDP password as the VNC password) — fully
-non-root, both protocols always show the same session. Services run
-under **tini + supervisord**, entirely unprivileged; the entrypoint
-renders all mutable config into tmpfs so the rootfs can be read-only.
-The web client is guacd/wwt from the platform — no noVNC in the images.
-RDP and SSH are capabilities of **OS-only** images only — the base
-(`core-*`) layer and the desktop XFCE layer built on its `-full`
-variant (`ubuntu-desktop-noble`, `debian-desktop-13`, `fedora-desktop-43`).
-Every `apps/*` image is built on the VNC-only `core-ubuntu-noble` core
-(single-app kiosk via `WAAS_APP`, no desktop in the image — except
-`devtools`, a real desktop on the VNC-only `core-ubuntu-noble-xfce`;
-never the `-full` core either way) and never ships `xrdp` or `sshd` at
-all: an image dedicated to one app can only ever activate VNC.
+speaks, and supports RandR resize. **VNC is the only protocol**: the
+platform reaches a Linux workspace over VNC and nothing else (waas#117
+— `rdp` is accepted on Windows VM templates only, `ssh` was dropped), so
+no image here ships `xrdp` or `sshd`, there is no build arg to add
+them, and ports 3389/2222 are not exposed. Services run under **tini +
+supervisord**, entirely unprivileged; the entrypoint renders all
+mutable config into tmpfs so the rootfs can be read-only. The web
+client is guacd/wwt from the platform — no noVNC in the images. The
+base (`core-*`) layer is the parent of the OS desktops
+(`ubuntu-desktop-noble`, `debian-desktop-13`, `fedora-desktop-43`) and
+of every `apps/*` kiosk (single-app via `WAAS_APP`, no desktop in the
+image) — except `devtools`, a real desktop built FROM
+`ubuntu-desktop-noble`.
 
 ## Try it standalone
 
@@ -61,7 +58,7 @@ every capability dropped):
 ```shell
 docker run --rm -it \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
-  --tmpfs /tmp --tmpfs /run --tmpfs /home/waas_user:mode=1777 \
+  --tmpfs /tmp --tmpfs /home/waas_user:mode=1777 \
   -p 5901:5901 -e WAAS_DESKTOP_PASSWORD=changeme \
   docker.io/xorhub/<image>:<version>
 ```
@@ -90,63 +87,45 @@ together (`ci/tests/test_publish_dockerhub_readme.py`).
 
 | Aspect | Value |
 |---|---|
-| VNC port | `5901` (RFB 3.8, VncAuth) — guacd protocol `vnc`, the default for `os: linux` |
-| RDP port | `3389` (TLS negotiated) — only images built with `INSTALL_RDP=1` and `WAAS_RDP_ENABLED=1` |
-| SSH port | `2222` (publickey only, guacd protocol `ssh`) — only images built with `INSTALL_SSH=1` (OS-only images: `ubuntu-desktop-noble`, `debian-desktop-13`, `fedora-desktop-43`); off by default even then, opt in with `WAAS_SSH_ENABLED=1` |
-| Readiness/liveness | TCP open on the template port ⇔ protocol server accepting connections (matches the operator's TCP probes) |
+| VNC port | `5901` (RFB 3.8, VncAuth) — guacd protocol `vnc`, the only protocol for `os: linux`. No RDP, no SSH: no other session listener (PulseAudio on `4713` is the audio stream, not a session) |
+| Readiness/liveness | TCP open on `5901` ⇔ Xvnc accepting connections (matches the operator's TCP probes) |
 | User | `waas_user`, UID/GID `1000:1000` (build-args `WAAS_USER`/`WAAS_UID`/`WAAS_GID`), home **`/home/waas_user`** = operator's PVC mount (`DefaultHomeMountPath`); fresh PVCs are seeded from `/etc/skel` |
-| Writable paths | `/home/waas_user` (PVC), `/tmp`, `/run` (emptyDirs) — everything else read-only-safe |
-| Desktop baseline | `desktop/xfce` and `desktop/xfce-fedora` ship Firefox, git, **openssh-client**, curl, vim, less and **mise** — inherited by the three OS desktops and, via `core-ubuntu-noble-xfce`, by `apps/devtools`. Kiosk apps built straight on a core image are deliberately excluded (no shell to use it). Before this, a desktop was XFCE and nothing else, and no image in the repo could `git push` over SSH |
+| Writable paths | `/home/waas_user` (PVC), `/tmp` (emptyDir) — everything else read-only-safe |
+| Desktop baseline | `desktop/xfce` and `desktop/xfce-fedora` ship Firefox, git, **openssh-client** (the client half only — outbound `git push`; no image ships an sshd), curl, vim, less and **mise** — inherited by the three OS desktops and, being built FROM `ubuntu-desktop-noble`, by `apps/devtools`. Kiosk apps built straight on a core image are deliberately excluded (no shell to use it). Before this, a desktop was XFCE and nothing else, and no image in the repo could `git push` over SSH |
 | Persistent tooling | **mise** ships on both profiles (it needs no privileges): toolchains install under `~/.local/share/mise`, i.e. on the PVC, so they survive pod restarts. Wired two ways: shims first on `PATH` (non-interactive contexts) and `mise activate` from `/etc/bash.bashrc` (interactive shells). Two caveats: shims shadow the image's own tools, and this covers toolchains only — system libraries still mean `sudo apt install` on a `-dev` tag, still lost on restart (HARDENING.md § Durable tooling) |
 | Init hook | optional ConfigMap mounted at `/etc/waas/init.d/` — `*.sh` sourced at boot after the image's own `entrypoint.d/` hooks (UID 1000, no privilege change; see HARDENING.md) |
 | Dev profile | `-dev` tags only (e.g. `devtools-dev`): sudo NOPASSWD baked, `WAAS_PROFILE=dev` warning at boot; pod must set `readOnlyRootFilesystem: false`, `allowPrivilegeEscalation: true` AND keep the runtime default capability set (cap-drop ALL keeps sudo dead); keep the catalog `allowedGroups` gate (HARDENING.md § Reduced profile) |
-| Required env | `WAAS_DESKTOP_PASSWORD` — one session password shared by VNC and RDP (the xrdp bridge forwards it, so they cannot differ). **Refuses to start without it.** The legacy names `VNC_PW`/`RDP_PASSWORD` are refused with an explicit error (see § Env naming). |
-| Optional env | `WAAS_VNC_RESOLUTION` (`1920x1080`), `WAAS_VNC_COL_DEPTH` (`24`), `WAAS_VNC_ENABLED` (`1`), `WAAS_RDP_ENABLED`, `WAAS_RDP_AUTH_ENABLED` (`true`), `WAAS_SSH_ENABLED` (`0`), `WAAS_SSH_AUTHORIZED_KEYS`/`_FILE` (required once SSH is enabled), `WAAS_SSH_HOST_KEY_FILE` (stable host identity), `WAAS_STARTUP` (session command), `WAAS_APP` (single-app kiosk command), `WAAS_TLS_CERT`/`WAAS_TLS_KEY` (mounted RDP cert) |
+| Required env | `WAAS_DESKTOP_PASSWORD` — the VNC session password. **Refuses to start without it.** The legacy names `VNC_PW`/`RDP_PASSWORD` are refused with an explicit error (see § Env naming). |
+| Optional env | `WAAS_VNC_RESOLUTION` (`1920x1080`), `WAAS_VNC_COL_DEPTH` (`24`), `WAAS_AUDIO_ENABLED` (`1`), `WAAS_STARTUP` (session command), `WAAS_APP` (single-app kiosk command) |
 | Recommended pod securityContext | `runAsNonRoot`, `runAsUser/fsGroup: 1000`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault` → PodSecurity **restricted** compliant |
 
 See `examples/workspacetemplate-xfce.yaml` for a complete template.
 
 **Env naming**: every variable these images interpret at runtime is
 `WAAS_`-prefixed — that is the whole contract, no exceptions. Build
-`ARG`s (`INSTALL_*`, `*_VERSION`, base image pins) are a separate,
+`ARG`s (`INSTALL_SUDO`, `*_VERSION`, base image pins) are a separate,
 build-only namespace and deliberately stay unprefixed. Coming from the
 headless-VNC container ecosystem (ConSol, accetto, kasm):
 
 | Legacy name | Here | Behavior if set |
 |---|---|---|
-| `VNC_PW`, `RDP_PASSWORD` | `WAAS_DESKTOP_PASSWORD` | **Refused** — startup fails with the new name in the message. Secret-bearing names get no silent alias: the platform only recognizes `WAAS_DESKTOP_PASSWORD` as an explicit source, so honoring the old name here would let a generated password silently shadow yours. |
+| `VNC_PW`, `RDP_PASSWORD` | `WAAS_DESKTOP_PASSWORD` | **Refused** — startup fails with the new name in the message. Secret-bearing names get no silent alias: the platform only recognizes `WAAS_DESKTOP_PASSWORD` as an explicit source, so honoring an old name here would let a generated password silently shadow yours. |
 | `VNC_RESOLUTION`, `VNC_COL_DEPTH` | `WAAS_VNC_RESOLUTION`, `WAAS_VNC_COL_DEPTH` | **Honored as fallback alias** (cosmetic, never read by the platform); `WAAS_*` wins when both are set, and a log line nudges toward the new name. |
 
-**RDP authentication (`WAAS_RDP_AUTH_ENABLED`, default `true`)**: images
-are secure by default — every build ships with RDP client authentication
-ON (`ENV WAAS_RDP_AUTH_ENABLED=true` in the base image), meaning the RDP
-client must present the session password, which the xrdp bridge forwards
-to Xvnc (`password=ask`). There is no build argument to turn it off: an
-image can never leave the pipeline with an open RDP. The only opt-out is
-the **runtime** env `WAAS_RDP_AUTH_ENABLED=false` (lab/dev setups behind
-their own gate): the bridge then authenticates to Xvnc itself and any
-client reaching `:3389` gets the session — the entrypoint logs a loud
-warning when this mode is active. The value must be exactly `true` or
-`false`; anything else aborts startup. VNC authentication (VncAuth) is
-unaffected in both modes, and a session password is required in every
-configuration.
-
-**SSH (`WAAS_SSH_ENABLED`, opt-in at image level, OS-only images)**:
-the image itself generates no credential, so SSH defaults to **off**
-even on a build with `INSTALL_SSH=1` (`ubuntu-desktop-noble`,
-`debian-desktop-13`, `fedora-desktop-43`) — a bare `docker run` has no
-operator to provide keys. Under the **platform**, declaring the `ssh`
-protocol on a template is enough: the operator generates a
-per-workspace keypair, mounts the public key and sets
-`WAAS_SSH_ENABLED=1` + `WAAS_SSH_AUTHORIZED_KEYS_FILE` itself (see
-waas `docs/templates-and-protocols.md` § Credentials). Standalone or
-with admin-managed keys, set `WAAS_SSH_ENABLED=1` plus
-`WAAS_SSH_AUTHORIZED_KEYS` (or `WAAS_SSH_AUTHORIZED_KEYS_FILE`) from a
-Secret; the entrypoint refuses to start SSH without an authorized key,
-and refuses to even try on an image that was never built with
-`INSTALL_SSH=1` (no `sshd` binary present). Publickey authentication
-only — the unprivileged `sshd` cannot read `/etc/shadow`, so password
-auth is impossible by construction.
+**No RDP, no SSH (since 3.0.0)**: earlier majors carried an optional
+xrdp bridge and an opt-in unprivileged sshd on the OS desktops
+(`WAAS_RDP_ENABLED`, `WAAS_RDP_AUTH_ENABLED`, `WAAS_SSH_ENABLED`,
+`WAAS_SSH_AUTHORIZED_KEYS(_FILE)`, `WAAS_TLS_CERT`/`_KEY`). The platform
+no longer accepts either protocol on a Linux workspace (waas#117), so
+the daemons, their build args and those variables are gone rather than
+defaulted off — setting them now does nothing, and a template still
+declaring `rdp`/`ssh` on one of these images is rejected by the
+platform itself, not by the image. Two tombstones stay loud on
+purpose: `RDP_PASSWORD` is refused like `VNC_PW` (same shadowing trap,
+see the table above), and `WAAS_VNC_ENABLED=0` — which used to mean
+"RDP only", Xvnc bound to localhost — is refused rather than ignored,
+since honoring it silently would expose VNC on a template that asked
+for the opposite.
 
 **Secrets**: nothing is baked into images; the password arrives via env
 at runtime. Today the api-server reads the guacd-side password from the
@@ -163,14 +142,6 @@ channel doesn't push browser resizes; wiring wwt → `waas-resize` is the
 clean future fix. Audio ships over VNC: an unprivileged PulseAudio (null
 sink, native protocol on tcp:4713) that guacd streams when the session
 sets `enable-audio` (see HARDENING.md for its network boundary).
-RDP-clipboard works text-only — xrdp's libvnc backend bridges cliprdr to
-RFB cut-text itself, no chansrv involved (verified live against guacd,
-both directions). RDP-audio is not shipped: chansrv would run fine
-without sesman/PAM/root, but its sound path needs an xrdp module inside
-the audio server and Ubuntu only packages the PipeWire variant
-(`pipewire-module-xrdp`) while this image runs PulseAudio — see
-HARDENING.md § Known gaps. VNC is the recommended protocol for Linux,
-RDP is a compatibility option.
 
 ## Build matrix & tagging
 
@@ -235,8 +206,9 @@ A verifying policy-controller must accept this signature mode.
 
 The smoke test is also the hardening gate: every image must boot with
 `--read-only --cap-drop ALL --security-opt no-new-privileges` and answer
-a real RFB banner / X.224 handshake, and its setuid/setgid set must be
-empty (exactly `/usr/bin/sudo` on `-dev` profiles). See `HARDENING.md`.
+a real RFB banner (plus a PulseAudio handshake on 4713), and its
+setuid/setgid set must be empty (exactly `/usr/bin/sudo` on `-dev`
+profiles). See `HARDENING.md`.
 
 ## Image metadata (labels & index annotations)
 
@@ -264,7 +236,7 @@ is maintained by hand; these keys are its future source of truth).
 | `io.xorhub.waas.os` | resolved `os:` key (`ubuntu-noble`, `debian-13`, `fedora-43`) |
 | `io.xorhub.waas.layer` | `base` / `desktop` / `apps` |
 | `io.xorhub.waas.profile` | `standard` or `dev` |
-| `io.xorhub.waas.parent` | parent ref (`core-ubuntu-noble-full:1.0.0`), empty on layer roots |
+| `io.xorhub.waas.parent` | parent ref (`core-ubuntu-noble:3.0.0`), empty on layer roots |
 
 Verify: `docker buildx imagetools inspect <ref> --raw` (index) or
 `docker inspect <arch-ref>` (config labels).
@@ -352,10 +324,9 @@ Design notes:
   `DevTools (hardened)`), never a hard-coded exception in the
   generator. `description` carries the manifest's `description:`
   whole — the old 80-char `displayName` truncation is gone.
-- `core-*` variants (internal build parents — base layer, plus the
-  VNC-only desktop parent for `apps/*`) never appear here at all: the
-  generator skips any variant name starting with `core-` before it
-  reaches the fallback logic above.
+- `core-*` variants (internal build parents — the base layer) never
+  appear here at all: the generator skips any variant name starting
+  with `core-` before it reaches the fallback logic above.
 - **`main` is the only ref, always overwritten in place**: this repo has
   no repo-global version or git tag (each image versions independently
   via its manifest), so there is nothing meaningful to pin a catalog
@@ -405,9 +376,8 @@ Design notes:
 discovery, same pattern as `ci/generate_catalog.py`) renders one
 section per published image — linking this project and
 [WaaS](https://github.com/XoRHub/waas) (the platform that deploys these
-images) and listing exactly which protocols that image supports (VNC
-always; RDP/SSH only when that variant's `smoke.rdp`/`smoke.ssh` say
-so) with the env vars to enable each.
+images) and stating its protocol contract — VNC, the only one — with
+the env vars that drive it.
 
 Deliberately **not committed**: it runs in the `catalog` job of every
 default-branch build and appends its output to that run's
@@ -483,7 +453,7 @@ Renovate-tracked pin is exactly the hand-written case (`FIREFOX_VERSION`).
    name: <name>
    layer: apps
    version: "1.0.0"
-   from: core-ubuntu-noble     # or core-ubuntu-noble-xfce for a full desktop
+   from: core-ubuntu-noble     # or ubuntu-desktop-noble for a full desktop
    variants:
      - name: <name>
        smoke: { vnc: true }

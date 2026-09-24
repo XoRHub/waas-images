@@ -88,7 +88,6 @@ RECOMMENDATION_STANDARD = {
     },
     "volumes": [
         {"name": "tmp", "mountPath": "/tmp"},
-        {"name": "run", "mountPath": "/run"},
     ],
 }
 
@@ -115,43 +114,6 @@ RECOMMENDATION_DEV = {
 # in this repo (WAAS_-prefixed contract; grep the name in README.md
 # HARDENING.md base/*/Dockerfile before touching this table).
 _ENV_HINTS_BY_PROTOCOL = {
-    "rdp": [
-        {
-            "name": "WAAS_RDP_ENABLED",
-            "description": "Enable xrdp — boolean '0'/'1'. Requires the "
-                            "image to have been built with INSTALL_RDP=1 "
-                            "(OS-only images only); no relevant runtime "
-                            "default to advertise here.",
-            "protocols": ["rdp"],
-        },
-        {
-            "name": "WAAS_RDP_AUTH_ENABLED",
-            "description": "Require the RDP client to present the session "
-                            "password. Baked true; an explicit runtime "
-                            "false opts out and logs a warning — never a "
-                            "build-time toggle.",
-            "protocols": ["rdp"],
-            "default": "true",
-        },
-    ],
-    "ssh": [
-        {
-            "name": "WAAS_SSH_ENABLED",
-            "description": "Enable sshd (publickey only) — boolean '0'/'1'.",
-            "protocols": ["ssh"],
-            "default": "0",
-            "requires": ["WAAS_SSH_AUTHORIZED_KEYS_FILE"],
-        },
-        {
-            "name": "WAAS_SSH_AUTHORIZED_KEYS_FILE",
-            "description": "Path to the authorized public key — mount "
-                            "from a Secret (valueFrom.secretKeyRef), never "
-                            "a literal value. Required as soon as "
-                            "WAAS_SSH_ENABLED=1: the entrypoint refuses to "
-                            "start otherwise (fail-closed by design).",
-            "protocols": ["ssh"],
-        },
-    ],
     "vnc": [
         {
             "name": "WAAS_AUDIO_ENABLED",
@@ -168,13 +130,12 @@ _ENV_HINTS_BY_PROTOCOL = {
 def env_hints(smoke: dict) -> list[dict]:
     """recommended.env for one variant, derived from its smoke: block —
     the only per-image protocol signal that reaches every catalogued
-    variant (build_args/INSTALL_RDP/INSTALL_SSH don't: they're never
-    redeclared on desktop/*/apps/* manifests, so build_args is empty on
-    every variant this generator actually publishes)."""
+    variant (build_args never carries a protocol: it is empty on every
+    variant this generator actually publishes)."""
     hints: list[dict] = []
-    for protocol in ("rdp", "ssh", "vnc"):
+    for protocol, protocol_hints in _ENV_HINTS_BY_PROTOCOL.items():
         if smoke.get(protocol):
-            hints.extend(copy.deepcopy(_ENV_HINTS_BY_PROTOCOL[protocol]))
+            hints.extend(copy.deepcopy(protocol_hints))
     return hints
 
 
@@ -250,8 +211,8 @@ def catalog(
     previous = previous or {}
     images = []
     for name, v in sorted(variants.items()):
-        # core-*: internal build parents only (base + the apps/* desktop
-        # parent) — never picked by an end user, never published here.
+        # core-*: internal build parents only (the base layer) — never
+        # picked by an end user, never published here.
         if name.startswith("core-"):
             continue
         # <registry>/<variant>:<version> — the exact ref the merge

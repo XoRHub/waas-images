@@ -126,8 +126,8 @@ ENV WAAS_APP="{command}"
 """
 
 # Long-running app under supervisord: ship an entrypoint.d hook (the
-# same extension point base/ubuntu/rootfs/etc/waas/entrypoint.d/
-# 50-sshd.sh uses) that renders the program fragment into the runtime
+# same extension point apps/hermes-agent's 60-hermes-dashboard.sh
+# uses) that renders the program fragment into the runtime
 # supervisor.d at boot.
 PROGRAM = """\
 # supervisord-managed app: restart semantics via a runtime-rendered

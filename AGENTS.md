@@ -8,11 +8,13 @@ first — this file only adds agent-specific operating rules.
 
 OCI images for WaaS Linux workspaces (Kasm-style, 100% OSS), consumed
 by the platform's Workspace CR: `operator → pod → guacd → wwt →
-browser`. Every image boots TigerVNC's Xvnc as the real display server,
-optionally bridges RDP through xrdp, runs entirely unprivileged under
-`tini + supervisord`, and is designed to pass `--read-only --cap-drop
-ALL --security-opt no-new-privileges`. Full design rationale: `README.md`
-§ "Design in one paragraph" and § "Contract with the Workspace CR".
+browser`. Every image boots TigerVNC's Xvnc as the real display server
+and the only remote-access listener (VNC is the sole protocol the
+platform reaches a Linux workspace over — waas#117), runs entirely
+unprivileged under `tini + supervisord`, and is designed to pass
+`--read-only --cap-drop ALL --security-opt no-new-privileges`. Full
+design rationale: `README.md` § "Design in one paragraph" and
+§ "Contract with the Workspace CR".
 
 ## Source of truth vs. generated files
 
@@ -47,10 +49,13 @@ without the user explicitly asking, and flag it back if a change would:
 - Add a setuid/setgid binary, or run a service as root/UID 0 past build
   time. Final `USER` must stay `1000:1000` (`waas_user`), configurable
   only via the `WAAS_UID`/`WAAS_GID`/`WAAS_USER` build args.
-- Require write access outside `/home/waas_user`, `/tmp`, `/run`.
-- Turn `WAAS_RDP_AUTH_ENABLED` off at build time (no such build arg exists on
-  purpose — README § "Contract with the Workspace CR" explains why; the
-  only opt-out is the runtime env, and it logs a loud warning).
+- Require write access outside `/home/waas_user`, `/tmp`.
+- Add a second remote-desktop or shell daemon (xrdp, sshd, ...) to any
+  image, or a build arg that could. VNC is the only protocol the
+  platform accepts for a Linux workspace (waas#117), so any other
+  session listener is pure attack surface — `HARDENING.md` § "No
+  remote-desktop or shell surface beyond VNC" is the contract, and the
+  smoke test only ever probes VNC.
 - Bake a secret/password into an image layer — passwords always arrive
   via runtime env.
 - Introduce `apt-get install` without `--no-install-recommends` plus a
@@ -64,7 +69,7 @@ without the user explicitly asking, and flag it back if a change would:
 ```
 make build IMAGE=<name>   # docker build via the same ci/*.sh args as CI
 make run   IMAGE=<name>   # VNC on localhost:15901, password devpassword
-make smoke IMAGE=<name>   # ci/smoke_test.sh — RFB/X.224 handshake, suid sweep
+make smoke IMAGE=<name>   # ci/smoke_test.sh — RFB banner, audio, suid sweep
 make lint                 # hadolint + shellcheck over Dockerfiles/*.sh
 ```
 

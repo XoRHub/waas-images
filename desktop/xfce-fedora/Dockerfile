@@ -7,10 +7,10 @@
 # against Fedora 43: xfdesktop (not xfdesktop4), Thunar (capitalised).
 #
 # BASE_IMAGE is injected by CI as the exact ref built earlier in the same
-# pipeline (registry/core-fedora-43-full:<version>-<sha>), so a layer
-# change propagates through the whole tree in one pipeline run. RDP/SSH
-# capability is entirely inherited from that core parent; this Dockerfile
-# only ever installs the desktop environment.
+# pipeline (registry/core-fedora-43:<version>-<sha>), so a layer change
+# propagates through the whole tree in one pipeline run. This Dockerfile
+# only ever installs the desktop environment; the remote-access surface
+# (VNC, nothing else) is the core parent's.
 ARG BASE_IMAGE
 # hadolint ignore=DL3006
 FROM ${BASE_IMAGE}

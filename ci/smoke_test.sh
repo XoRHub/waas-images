@@ -4,15 +4,13 @@
 # The container is deliberately run the hard way — read-only rootfs,
 # every capability dropped, no-new-privileges, tmpfs home — so the
 # hardening contract is enforced by CI, not just documented. If someone
-# adds a service that needs to write outside /tmp|/run|$HOME, this fails.
+# adds a service that needs to write outside /tmp|$HOME, this fails.
 # A suid sweep asserts "no setuid/setgid binaries" (standard profile) or
 # "exactly sudo" (SMOKE_PROFILE=dev, reduced-hardening images).
 #
 # Checks (retried, because published ports accept connections before the
 # in-container service is up — docker-proxy answers first):
 #   VNC: read the RFB banner ("RFB 003.008") from port 5901.
-#   RDP: send an X.224 Connection Request, expect a TPKT (0x03) reply.
-#   SSH: read the protocol banner ("SSH-2.0-...") from port 2222.
 #   AUDIO: pactl (in-container) against the PulseAudio TCP module — the
 #          native protocol has no server-first banner to read from outside.
 #
@@ -55,9 +53,8 @@ trap cleanup EXIT
 docker run -d --name "${NAME}" \
     ${HARDEN_FLAGS} \
     --tmpfs /tmp \
-    --tmpfs /run \
     --tmpfs /home/waas_user:mode=1777 \
-    -p 15901:5901 -p 13389:3389 -p 12222:2222 \
+    -p 15901:5901 \
     ${ENV_FLAGS} \
     "${SMOKE_IMAGE}" >/dev/null
 
@@ -127,31 +124,9 @@ probe_vnc() {
     case "${BANNER}" in "RFB "*) return 0 ;; *) return 1 ;; esac
 }
 
-probe_rdp() {
-    # TPKT + X.224 CR + RDP negotiation request (TLS|RDP security).
-    REPLY=$(printf '\003\000\000\023\016\340\000\000\000\000\000\001\000\010\000\013\000\000\000' \
-        | nc -w 5 "${HOST}" 13389 2>/dev/null | dd bs=1 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n')
-    [ "${REPLY}" = "03" ]
-}
-
 if [ "${SMOKE_VNC:-0}" = "1" ]; then
     retry "VNC" probe_vnc
     echo "OK: VNC answered with '${BANNER}'"
-fi
-
-if [ "${SMOKE_RDP:-0}" = "1" ]; then
-    retry "RDP" probe_rdp
-    echo "OK: RDP answered with a TPKT header"
-fi
-
-probe_ssh() {
-    SSH_BANNER=$(nc -w 5 "${HOST}" 12222 </dev/null 2>/dev/null | dd bs=1 count=8 2>/dev/null || true)
-    case "${SSH_BANNER}" in "SSH-2.0"*) return 0 ;; *) return 1 ;; esac
-}
-
-if [ "${SMOKE_SSH:-0}" = "1" ]; then
-    retry "SSH" probe_ssh
-    echo "OK: SSH answered with '${SSH_BANNER}'"
 fi
 
 probe_audio() {

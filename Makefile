@@ -21,49 +21,37 @@ TAG        := $(REGISTRY)/$(IMAGE):dev
 # core-* names are internal build parents only (never catalogued).
 ifeq ($(IMAGE),core-ubuntu-noble)
   CTX := base/ubuntu
-  ARGS := --build-arg INSTALL_RDP=0 --build-arg INSTALL_SSH=0
-else ifeq ($(IMAGE),core-ubuntu-noble-full)
-  CTX := base/ubuntu
-  ARGS := --build-arg INSTALL_RDP=1 --build-arg INSTALL_SSH=1
-else ifeq ($(IMAGE),core-ubuntu-noble-xfce)
-  CTX := desktop/xfce
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble:dev
+  ARGS :=
 else ifeq ($(IMAGE),ubuntu-desktop-noble)
   CTX := desktop/xfce
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble-full:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble:dev
 else ifeq ($(IMAGE),firefox)
   CTX := apps/firefox
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble:dev
 else ifeq ($(IMAGE),core-debian-13)
   CTX := base/ubuntu
-  ARGS := --build-arg INSTALL_RDP=0 --build-arg INSTALL_SSH=0 --build-arg OS_BASE_IMAGE=debian:13-slim
-else ifeq ($(IMAGE),core-debian-13-full)
-  CTX := base/ubuntu
-  ARGS := --build-arg INSTALL_RDP=1 --build-arg INSTALL_SSH=1 --build-arg OS_BASE_IMAGE=debian:13-slim
+  ARGS := --build-arg OS_BASE_IMAGE=debian:13-slim
 else ifeq ($(IMAGE),debian-desktop-13)
   CTX := desktop/xfce
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-debian-13-full:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-debian-13:dev
 else ifeq ($(IMAGE),core-fedora-43)
   CTX := base/fedora
-  ARGS := --build-arg INSTALL_RDP=0 --build-arg INSTALL_SSH=0
-else ifeq ($(IMAGE),core-fedora-43-full)
-  CTX := base/fedora
-  ARGS := --build-arg INSTALL_RDP=1 --build-arg INSTALL_SSH=1
+  ARGS :=
 else ifeq ($(IMAGE),fedora-desktop-43)
   CTX := desktop/xfce-fedora
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-fedora-43-full:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-fedora-43:dev
 else ifeq ($(IMAGE),devtools)
   CTX := apps/devtools
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-desktop-noble:dev
 else ifeq ($(IMAGE),devtools-dev)
   CTX := apps/devtools
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble-xfce:dev --build-arg INSTALL_SUDO=1 --build-arg WAAS_PROFILE=dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/ubuntu-desktop-noble:dev --build-arg INSTALL_SUDO=1 --build-arg WAAS_PROFILE=dev
 else ifeq ($(IMAGE),libreoffice)
   CTX := apps/libreoffice
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble:dev
 else ifeq ($(IMAGE),chrome)
   CTX := apps/chrome
-  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble-xfce:dev
+  ARGS := --build-arg BASE_IMAGE=$(REGISTRY)/core-ubuntu-noble:dev
 endif
 
 .PHONY: build run smoke lint clean recipes catalogs image-docs
@@ -97,9 +85,9 @@ build: recipes
 run: build
 	docker run --rm -it \
 		--read-only --cap-drop ALL --security-opt no-new-privileges \
-		--tmpfs /tmp --tmpfs /run --tmpfs /home/waas_user:mode=1777 \
-		-p 15901:5901 -p 13389:3389 \
-		-e WAAS_DESKTOP_PASSWORD=devpassword -e WAAS_RDP_ENABLED=$(if $(findstring full,$(IMAGE)),1,0) \
+		--tmpfs /tmp --tmpfs /home/waas_user:mode=1777 \
+		-p 15901:5901 \
+		-e WAAS_DESKTOP_PASSWORD=devpassword \
 		$(TAG)
 
 smoke: build

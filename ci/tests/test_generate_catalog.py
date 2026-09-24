@@ -21,7 +21,7 @@ MANIFESTS = [
         "layer": "desktop",
         "context": "desktop/xfce",
         "dockerfile": None,
-        "description": "XFCE desktop, VNC + RDP, derived from the apt base-rdp image.",
+        "description": "XFCE desktop over VNC, derived from the apt core image.",
         "version": "1.1.0",
         "icon": "ubuntu-linux",
         "variants": [
@@ -65,7 +65,7 @@ class CatalogFormat(unittest.TestCase):
             "icon": "ubuntu-linux",
             # No displayName: in the manifest — derived from the id.
             "displayName": "Ubuntu Xfce",
-            "description": "XFCE desktop, VNC + RDP, derived from the apt base-rdp image.",
+            "description": "XFCE desktop over VNC, derived from the apt core image.",
             # Build matrix defaults (CFG): linux/amd64 -> amd64.
             "architectures": ["amd64"],
             # No smoke: on this fixture's variant, so no env hints — but
@@ -164,15 +164,17 @@ class CatalogFormat(unittest.TestCase):
 
 RECOMMENDED_MANIFESTS = [
     {
-        "name": "ubuntu-desktop-full",
-        "layer": "base",
-        "context": "base/ubuntu",
+        "name": "ubuntu-desktop",
+        "layer": "desktop",
+        "context": "desktop/xfce",
         "dockerfile": None,
-        "description": "OS-only desktop, VNC + RDP + SSH.",
+        "description": "OS desktop over VNC.",
         "version": "1.0.0",
         "variants": [
-            {"name": "ubuntu-desktop-full",
-             "smoke": {"vnc": True, "rdp": True, "ssh": True}},
+            {"name": "ubuntu-desktop-noble",
+             "smoke": {"vnc": True, "audio": True}},
+            # CI probes nothing on this one: no protocol hint at all.
+            {"name": "ubuntu-desktop-unprobed", "smoke": {}},
         ],
     },
     {
@@ -182,8 +184,7 @@ RECOMMENDED_MANIFESTS = [
         "dockerfile": None,
         "description": "Chrome desktop, VNC only.",
         "version": "1.0.0",
-        # Mirrors apps/chrome/manifest.yaml: only vnc: true declared,
-        # no explicit rdp:/ssh: false.
+        # Mirrors apps/chrome/manifest.yaml: only vnc: true declared.
         "variants": [{"name": "chrome", "smoke": {"vnc": True}}],
     },
     {
@@ -235,7 +236,6 @@ class CatalogRecommended(unittest.TestCase):
         self.assertEqual(sec["capabilities"], {"drop": ["ALL"]})
         self.assertEqual(entry["recommended"]["volumes"], [
             {"name": "tmp", "mountPath": "/tmp"},
-            {"name": "run", "mountPath": "/run"},
         ])
 
     def test_dev_profile_maps_to_normal_with_exceptions(self):
@@ -252,13 +252,22 @@ class CatalogRecommended(unittest.TestCase):
             self.by_app["devtools"]["recommended"]["podSecurityContext"])
 
     def test_env_hints_follow_smoke(self):
-        self.assertEqual(
-            [h["name"] for h in self.by_app["ubuntu-desktop-full"]["recommended"]["env"]],
-            ["WAAS_RDP_ENABLED", "WAAS_RDP_AUTH_ENABLED", "WAAS_SSH_ENABLED",
-             "WAAS_SSH_AUTHORIZED_KEYS_FILE", "WAAS_AUDIO_ENABLED"])
-        self.assertEqual(
-            [h["name"] for h in self.by_app["chrome"]["recommended"]["env"]],
-            ["WAAS_AUDIO_ENABLED"])
+        # vnc is the only protocol, so the only protocol-derived hint is
+        # the VNC audio toggle — on every variant CI probes over VNC.
+        for app in ("ubuntu-desktop-noble", "chrome"):
+            self.assertEqual(
+                [h["name"] for h in self.by_app[app]["recommended"]["env"]],
+                ["WAAS_AUDIO_ENABLED"])
+        self.assertNotIn("env", self.by_app["ubuntu-desktop-unprobed"]["recommended"])
+
+    def test_no_hint_ever_names_a_dropped_protocol(self):
+        # xrdp/sshd left the images (waas#117): nothing may advertise
+        # them again, whatever a manifest's smoke: block says.
+        for entry in self.out["images"]:
+            for hint in entry["recommended"].get("env", []):
+                self.assertNotIn("RDP", hint["name"])
+                self.assertNotIn("SSH", hint["name"])
+                self.assertEqual(hint.get("protocols", ["vnc"]), ["vnc"])
 
     def test_manifest_env_merges_and_overrides_protocol_hints(self):
         env = self.by_app["hermes-agent"]["recommended"]["env"]

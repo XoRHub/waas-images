@@ -2,13 +2,12 @@
 # waas desktop (XFCE) — lightweight full desktop on top of a core image.
 #
 # BASE_IMAGE is injected by CI as the exact ref built earlier in the same
-# pipeline — registry/core-ubuntu-noble-full:<version>-<sha>
-# (ubuntu-desktop-noble), registry/core-debian-13-full:<version>-<sha>
-# (debian-desktop-13), or registry/core-ubuntu-noble:<version>-<sha>
-# (core-ubuntu-noble-xfce, the VNC-only devtools parent) — so a layer
-# change propagates through the whole tree in one pipeline run. RDP/SSH
-# capability is entirely inherited from whichever core parent this is
-# built FROM; this Dockerfile only ever installs the desktop environment.
+# pipeline — registry/core-ubuntu-noble:<version>-<sha>
+# (ubuntu-desktop-noble) or registry/core-debian-13:<version>-<sha>
+# (debian-desktop-13) — so a layer change propagates through the whole
+# tree in one pipeline run. This Dockerfile only ever installs the
+# desktop environment; the remote-access surface (VNC, nothing else) is
+# the core parent's.
 ARG BASE_IMAGE
 # hadolint ignore=DL3006
 FROM ${BASE_IMAGE}
@@ -37,14 +36,14 @@ RUN apt-get update && \
 # XFCE and nothing else — no browser, no editor, no git, and no ssh client
 # at all (`git push` over SSH was impossible on EVERY image in this repo,
 # devtools included). This layer is where that belongs: it reaches the two
-# OS desktops AND core-ubuntu-noble-xfce, so apps/devtools inherits it
-# instead of carrying its own copy. The kiosk apps built straight on
-# core-ubuntu-noble (firefox, chrome, libreoffice, hermes-agent) are
-# deliberately untouched — they have no shell to use any of it.
+# OS desktops, and apps/devtools (built FROM ubuntu-desktop-noble)
+# inherits it instead of carrying its own copy. The kiosk apps built
+# straight on core-ubuntu-noble (firefox, chrome, libreoffice,
+# hermes-agent) are deliberately untouched — they have no shell to use
+# any of it.
 #
-# openssh-client, not openssh-server: this is the client half, for `git
-# push` and outbound ssh. Whether sshd LISTENS is still entirely the core
-# parent's INSTALL_SSH decision.
+# openssh-client only, never openssh-server: the client half, for `git
+# push` and outbound ssh. No image in this repo ships an sshd.
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

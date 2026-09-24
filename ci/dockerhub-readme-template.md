@@ -16,7 +16,7 @@ No platform needed to evaluate the image — it runs under the same constraints 
 ```shell
 docker run --rm -it \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
-  --tmpfs /tmp --tmpfs /run --tmpfs /home/waas_user:mode=1777 \
+  --tmpfs /tmp --tmpfs /home/waas_user:mode=1777 \
   -p 5901:5901 -e WAAS_DESKTOP_PASSWORD=changeme \
   {image}
 ```

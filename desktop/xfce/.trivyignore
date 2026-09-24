@@ -1,5 +1,5 @@
-# .trivyignore — desktop/xfce context, so it covers ubuntu-desktop-noble,
-# debian-desktop-13 AND core-ubuntu-noble-xfce (the devtools parent).
+# .trivyignore — desktop/xfce context, so it covers ubuntu-desktop-noble
+# (the devtools parent) AND debian-desktop-13.
 # Added 2026-07-20 with the desktop baseline, which brings Firefox into
 # this layer.
 #

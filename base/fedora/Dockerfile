@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
 #
-# waas fedora base — headless graphical session, VNC always, RDP opt-in.
+# waas fedora base — headless graphical session over VNC.
 #
 # dnf-based sibling of base/ubuntu/Dockerfile: same design (TigerVNC
-# Xvnc as THE X server, xrdp libvnc bridge without sesman/PAM,
-# unprivileged PulseAudio null sink on tcp:4713, tini + supervisord),
-# same runtime contract, same rootfs scripts. The rootfs/ tree is a
-# DELIBERATE COPY of base/ubuntu/rootfs (the build context is the image
-# directory, so it cannot be shared); any change to one copy must be
-# mirrored in the other — both are shellcheck-linted in CI.
+# Xvnc as THE X server and the only remote-access protocol, unprivileged
+# PulseAudio null sink on tcp:4713, tini + supervisord), same runtime
+# contract, same rootfs scripts. The rootfs/ tree is a DELIBERATE COPY
+# of base/ubuntu/rootfs (the build context is the image directory, so
+# it cannot be shared); any change to one copy must be mirrored in the
+# other — both are shellcheck-linted in CI.
 #
 # Package-name deltas vs the apt base (verified against Fedora 43, not
 # assumed): TigerVNC is split three ways (tigervnc-x11-server = Xvnc,
@@ -28,14 +28,6 @@ FROM ${OS_BASE_IMAGE}
 ARG WAAS_USER=waas_user
 ARG WAAS_UID=1000
 ARG WAAS_GID=1000
-# Bake xrdp into the image (1) or ship VNC-only (0). Runtime toggles
-# (WAAS_VNC_ENABLED / WAAS_RDP_ENABLED) can only enable what is installed.
-ARG INSTALL_RDP=0
-# Bake an unprivileged, publickey-only sshd into the image (1) or ship
-# without one at all (0, default) — same opt-in-but-off-by-default
-# contract as base/ubuntu/Dockerfile; see rootfs/etc/waas/entrypoint.d/
-# 50-sshd.sh.
-ARG INSTALL_SSH=0
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV LANG=C.UTF-8 \
@@ -59,30 +51,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         pulseaudio-utils \
         dejavu-sans-fonts \
         xorg-x11-fonts-misc \
-        ca-certificates \
-        openssl \
-    && if [ "${INSTALL_RDP}" = "1" ]; then \
-        dnf install -y --setopt=install_weak_deps=False xrdp && \
-        # xrdp config + keys are rendered at runtime into the (writable)
-        # runtime dir; symlink the hardcoded paths there so the rootfs can
-        # stay read-only.
-        rm -f /etc/xrdp/xrdp.ini /etc/xrdp/rsakeys.ini /etc/xrdp/cert.pem /etc/xrdp/key.pem && \
-        ln -s /tmp/waas/xrdp/xrdp.ini    /etc/xrdp/xrdp.ini && \
-        ln -s /tmp/waas/xrdp/rsakeys.ini /etc/xrdp/rsakeys.ini && \
-        ln -s /tmp/waas/xrdp/cert.pem    /etc/xrdp/cert.pem && \
-        ln -s /tmp/waas/xrdp/key.pem     /etc/xrdp/key.pem; \
-    fi && \
-    if [ "${INSTALL_SSH}" = "1" ]; then \
-        dnf install -y --setopt=install_weak_deps=False openssh-server && \
-        # openssh-server's postinst bakes host keys; drop them so the
-        # image carries none — 50-sshd.sh (re)generates them at boot (or
-        # takes a mounted WAAS_SSH_HOST_KEY_FILE), and baked keys trip
-        # trivy's secret scanner (HIGH: AsymmetricPrivateKey) for no
-        # benefit (same rationale as apps/dev-ssh/Dockerfile).
-        rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub && \
-        # sshd refuses to start without its privilege-separation directory.
-        mkdir -p /run/sshd; \
-    fi && \
+        ca-certificates && \
     # dbus-launch (session bus) wants a machine id; bake one so it works
     # on a read-only rootfs. Identical across containers — acceptable, it
     # is not used as an identity by anything we run.
@@ -92,7 +61,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
     # Fail the build (not the runtime) if a packaging change moves one of
     # the binaries the rootfs scripts invoke.
     command -v Xvnc vncconfig vncpasswd supervisord tini openbox xterm \
-        xauth xrandr dbus-launch pulseaudio pactl openssl >/dev/null
+        xauth xrandr dbus-launch pulseaudio pactl >/dev/null
 
 # Non-root user with fixed UID/GID (no default UID-1000 squatter on
 # Fedora images — verified; kept unconditional-safe anyway).
@@ -112,31 +81,14 @@ RUN chmod 0755 /usr/local/bin/waas-entrypoint /usr/local/bin/waas-session /usr/l
 
 # ---- Runtime contract (consumed by the Workspace operator) ----
 # Port 5901: RFB/VNC (guacd protocol "vnc"). TCP-open == session ready.
-# Port 3389: RDP via xrdp, only when INSTALL_RDP=1 and WAAS_RDP_ENABLED=1.
-# Port 2222: SSH, only when INSTALL_SSH=1 and WAAS_SSH_ENABLED=1 — off by
-#            default even when installed (see rootfs/etc/waas/
-#            entrypoint.d/50-sshd.sh).
 # Port 4713: PulseAudio native protocol for guacd's VNC audio stream,
 #            unless WAAS_AUDIO_ENABLED=0.
-EXPOSE 5901 3389 2222 4713
+EXPOSE 5901 4713
 
 ENV WAAS_USER=${WAAS_USER} \
     HOME=/home/waas_user \
     DISPLAY=:1 \
     WAAS_RUNTIME_DIR=/tmp/waas \
-    WAAS_VNC_ENABLED=1 \
-    WAAS_RDP_ENABLED=${INSTALL_RDP} \
-    # Secure by default: RDP clients must authenticate with the session
-    # password. Only an explicit WAAS_RDP_AUTH_ENABLED=false at runtime —
-    # never a build — turns it off (see waas-entrypoint / README).
-    WAAS_RDP_AUTH_ENABLED=true \
-    # Always off regardless of INSTALL_SSH — the image generates no
-    # credential, so it never assumes an operator meant to expose it.
-    # The waas operator flips this on (with generated keys) when a
-    # template declares the ssh protocol; standalone runs opt in with
-    # WAAS_SSH_ENABLED=1 + WAAS_SSH_AUTHORIZED_KEYS(_FILE).
-    WAAS_SSH_ENABLED=0 \
-    WAAS_SSH_PORT=2222 \
     WAAS_AUDIO_ENABLED=1 \
     # WAAS_VNC_RESOLUTION / WAAS_VNC_COL_DEPTH deliberately have NO baked
     # ENV default: their defaults live in the entrypoint, because an

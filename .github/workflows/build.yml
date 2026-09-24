@@ -189,8 +189,6 @@ jobs:
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
       SMOKE_PROFILE: ${{ matrix.SMOKE_PROFILE }}
       SMOKE_VNC: ${{ matrix.SMOKE_VNC }}
-      SMOKE_RDP: ${{ matrix.SMOKE_RDP }}
-      SMOKE_SSH: ${{ matrix.SMOKE_SSH }}
       SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
@@ -313,8 +311,6 @@ jobs:
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
       SMOKE_PROFILE: ${{ matrix.SMOKE_PROFILE }}
       SMOKE_VNC: ${{ matrix.SMOKE_VNC }}
-      SMOKE_RDP: ${{ matrix.SMOKE_RDP }}
-      SMOKE_SSH: ${{ matrix.SMOKE_SSH }}
       SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:
@@ -432,8 +428,6 @@ jobs:
       IMG_PROFILE: ${{ matrix.IMG_PROFILE }}
       SMOKE_PROFILE: ${{ matrix.SMOKE_PROFILE }}
       SMOKE_VNC: ${{ matrix.SMOKE_VNC }}
-      SMOKE_RDP: ${{ matrix.SMOKE_RDP }}
-      SMOKE_SSH: ${{ matrix.SMOKE_SSH }}
       SMOKE_AUDIO: ${{ matrix.SMOKE_AUDIO }}
       SMOKE_ENV: ${{ matrix.SMOKE_ENV }}
     steps:

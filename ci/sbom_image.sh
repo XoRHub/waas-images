@@ -22,7 +22,7 @@ log "trivy sbom (cyclonedx) ${IMAGE}"
 docker run --rm \
     -v "$(pwd):/out" \
     -v trivy-cache:/root/.cache/trivy \
-    ghcr.io/aquasecurity/trivy:0.72.0 image \
+    ghcr.io/aquasecurity/trivy:0.74.0 image \
     --username "${CI_REGISTRY_USER}" --password "${CI_REGISTRY_PASSWORD}" \
     --format cyclonedx \
     --output /out/sbom.cdx.json \

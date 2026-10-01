@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
+# syntax=docker/dockerfile:1.27@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 # waas hermes-agent — Nous Research's Hermes Agent with its web
 # dashboard as the kiosk session: Firefox on http://127.0.0.1:9119
 # (the dashboard's Chat tab embeds the full TUI via xterm.js, so one
